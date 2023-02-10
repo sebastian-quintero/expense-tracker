@@ -1,0 +1,7 @@
+black==23.1.0
+fastapi==0.89.1
+flake8==6.0.0
+mysql==0.0.3
+mysql-connector-python==8.0.32
+sqlmodel==0.0.8
+uvicorn==0.20.0
