@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 from fastapi import FastAPI, status
 from pydantic import BaseModel
 
-from database import ExpenseType, record_expense
+from database import ExpenseType, record_expense, retrieve_expenses
 from logger import configure_logs
 
 configure_logs()
@@ -23,7 +24,7 @@ class Response(BaseModel):
     """Response of an API request."""
 
     message: str
-    metadata: str | None = None
+    metadata: Any | None = None
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -49,3 +50,30 @@ def expense(expense_type: ExpenseType, expense: Expense) -> Response:
     )
 
     return Response(message="ok")
+
+
+@app.get("/report", status_code=status.HTTP_200_OK)
+def report() -> Response:
+    """Creates an expense report for the current month and the year so far."""
+    logging.info("Creating expenses report")
+
+    # Retrieves the expenses from the database.
+    monthly_total, monthly_essential, monthly_non_essential = retrieve_expenses(
+        date=datetime.now(),
+    )
+
+    # Formats values to monetary units.
+    monthly_total = {k: "${:,.2f}".format(v) for k, v in monthly_total.items()}
+    monthly_essential = {k: "${:,.2f}".format(v) for k, v in monthly_essential.items()}
+    monthly_non_essential = {
+        k: "${:,.2f}".format(v) for k, v in monthly_non_essential.items()
+    }
+
+    return Response(
+        message="report",
+        metadata={
+            "monthly_total": monthly_total,
+            "monthly_essential": monthly_essential,
+            "monthly_non_essential": monthly_non_essential,
+        },
+    )

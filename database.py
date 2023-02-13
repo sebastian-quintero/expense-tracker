@@ -1,10 +1,11 @@
 import logging
 import os
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 # Initializes the database engine. Use env vars to pass private info.
 ENGINE = create_engine(
@@ -22,7 +23,7 @@ class ExpenseType(str, Enum):
     """Type of expenses that can be recorded."""
 
     essential = "ess"
-    discretionary = "disc"
+    non_essential = "non"
 
 
 class Expenses(SQLModel, table=True):
@@ -55,3 +56,33 @@ def record_expense(
         session.add(expense)
         session.commit()
     logging.info("Successfully recorded expense")
+
+
+def retrieve_expenses(
+    date: datetime,
+) -> Tuple[Dict[int, float], Dict[int, float], Dict[int, float]]:
+    """Retrieve expenses from the expenses.expenses table."""
+    # Create empty totals.
+    monthly_total = defaultdict(int)
+    monthly_essential = defaultdict(int)
+    monthly_non_essential = defaultdict(int)
+
+    with Session(ENGINE) as session:
+        # Executes statement to retrieve info from the database.
+        statement = select(Expenses).where(
+            Expenses.date >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo)
+        )
+        logging.info(f"Executing sql statement: {statement}")
+        expenses = session.exec(statement)
+
+        # Tallies up expenses by category.
+        for expense in expenses:
+            monthly_total[expense.date.month] += expense.value
+            if expense.type == ExpenseType.essential:
+                monthly_essential[expense.date.month] += expense.value
+            else:
+                monthly_non_essential[expense.date.month] += expense.value
+
+    logging.info(f"Tallied up expenses. monthly_totals: {monthly_total}")
+
+    return monthly_total, monthly_essential, monthly_non_essential
