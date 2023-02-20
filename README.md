@@ -108,4 +108,5 @@ docker run -d --name expense-tracker -p 8000:8000 --env-file .env --rm expense-t
 
 Now you can make all the same requests that were described in the previous
 section. Make sure that there is a database server running in the same
-container where the server is being initialized.
+container where the server is being initialized and that the proper table has
+been created.
