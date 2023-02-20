@@ -4,10 +4,12 @@ Track expenses and get a report, tallying them up monthly and classifying by
 type: essential and non-essential.
 
 This project uses [FastAPI](https://fastapi.tiangolo.com) to stand up a server
-and [MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database. Please
-make sure you have `mysql` installed and there is a MySQL server available. You
-can visit [this
-tutorial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html).
+and [MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database, and
+[SQLModel](https://www.google.com/search?client=safari&rls=en&q=sql+tiangolo&ie=UTF-8&oe=UTF-8)
+to interact with it. Please make sure you have `mysql` installed and there is a
+MySQL server available. You can visit [this
+tutorial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html) to learn more
+about standing up a MySQL server.
 
 ## Creating the database and expenses table
 
