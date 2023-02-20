@@ -7,7 +7,7 @@ LOG_PATTERN = (
     "[%(filename)0s:%(lineno)s]"
     "[%(funcName)0s()][%(levelname)s] | %(message)s "
 )
-LOG_DATE_PATTERN = "%Y-%m-%d %H:%M:%S.%s%z"
+LOG_DATE_PATTERN = "%Y-%m-%d %H:%M:%S%z"
 
 
 def configure_logs():
