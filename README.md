@@ -105,10 +105,10 @@ with sample environment variables. You should either replace these values or
 use a new file, such as a standard `.env`.
 
 ```bash
-docker run -d --name expense-tracker -p 8000:8000 --env-file .env --rm expense-tracker
+docker run -d --name expense-tracker -p 80:8000 --env-file .env --rm expense-tracker
 ```
 
 Now you can make all the same requests that were described in the previous
-section. Make sure that there is a database server running in the same
-container where the server is being initialized and that the proper table has
-been created.
+section, but to port `80`. Make sure that there is a database server running in
+the same container where the server is being initialized and that the proper
+table has been created.
