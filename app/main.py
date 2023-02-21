@@ -94,15 +94,21 @@ def report() -> str:
     # Build a single string as a message.
     message = ""
     for month, value in total.items():
-        ess_value = ess[month]
-        non_value = non[month]
-        ess_ratio = floor((ess_value / value) * 100)
-        non_ratio = floor((non_value / value) * 100)
-
         # Format to monetary units.
         message += f"\n{month} = {'${:,.2f}'.format(value)} || "
-        message += f"ess = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%) | "
-        message += f"non = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
+
+        # Only report essential and non-essential if they exist.
+        if ess.get(month) is not None:
+            ess_value = ess[month]
+            ess_ratio = floor((ess_value / value) * 100)
+            message += f"| ess = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%) "
+
+        if non.get(month) is not None:
+            non_value = non[month]
+            non_ratio = floor((non_value / value) * 100)
+            message += f"| non = {'${:,.2f}'.format(non_value)} ({non_ratio}%) "
+
+        message += "\n"
 
     logging.info("Succesfully tallied expenses")
 
