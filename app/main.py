@@ -7,7 +7,7 @@ from math import floor
 from typing import List
 
 import pytz
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
@@ -71,7 +71,7 @@ def report() -> str:
 
 
 @server.post("/twilio", status_code=status.HTTP_202_ACCEPTED)
-def twilio(From: str, Body: str) -> str:
+def twilio(request: Request) -> str:
     """
     Interact with the Twilio WhatsApp API. This endpoint is the callback that
     must be specified in the console. It processes an incoming message and can:
@@ -87,22 +87,36 @@ def twilio(From: str, Body: str) -> str:
     2. report
     """
 
-    # Replaces whitespace with a plus sign
-    From = From.replace(" ", "+")
+    # Validates necessary query params are present.
+    if request.query_params.get("from") is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="from missing in query params",
+        )
+
+    if request.query_params.get("body") is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="body missing in query params",
+        )
+
+    # Replaces whitespace with a plus sign.
+    from_param = request.query_params["from"].replace(" ", "+")
 
     # Validates the sender is authorized.
     allowed_from = os.environ.get("ALLOWED_FROM").split(",")
-    if From not in allowed_from:
-        logging.error(f"From {From} is not authorized")
+    if from_param not in allowed_from:
+        logging.error(f"From {from_param} is not authorized")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Sender {From} is unauthorized",
+            detail=f"Sender {from_param} is unauthorized",
         )
 
     # If the first three characters are "ess" or "non", an expense is recorded.
-    if Body[0:4] in ["ess ", "non "]:
+    body = request.query_params["body"].lower()
+    if body[0:4] in ["ess ", "non "]:
         logging.info("Recording an expense from a Twilio message")
-        request = Body.split(" ")
+        request = body.split(" ")
 
         # Checks that there are at least 2 spaces defining the request.
         if len(request) < 3:
@@ -131,7 +145,7 @@ def twilio(From: str, Body: str) -> str:
         return str(response)
 
     # If the message just says "report", an expense report is requested.
-    if Body == "report":
+    if body == "report":
         logging.info("Creating a report from a Twilio message")
 
         # Retrieves the expenses from the database and tallies them.
