@@ -88,20 +88,20 @@ def twilio(request: Request) -> str:
     """
 
     # Validates necessary query params are present.
-    if request.query_params.get("from") is None:
+    if request.query_params.get("From") is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="from missing in query params",
+            detail="From missing in query params",
         )
 
-    if request.query_params.get("body") is None:
+    if request.query_params.get("Body") is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="body missing in query params",
+            detail="Body missing in query params",
         )
 
     # Replaces whitespace with a plus sign.
-    from_param = request.query_params["from"].replace(" ", "+")
+    from_param = request.query_params["From"].replace(" ", "+")
 
     # Validates the sender is authorized.
     allowed_from = os.environ.get("ALLOWED_FROM").split(",")
@@ -113,7 +113,7 @@ def twilio(request: Request) -> str:
         )
 
     # If the first three characters are "ess" or "non", an expense is recorded.
-    body = request.query_params["body"].lower()
+    body = request.query_params["Body"].lower()
     if body[0:4] in ["ess ", "non "]:
         logging.info("Recording an expense from a Twilio message")
         request = body.split(" ")
