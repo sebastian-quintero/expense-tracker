@@ -13,8 +13,8 @@ about standing up a MySQL server.
 
 The server is enabled to interact with [Twilio's WhatsApp
 API](https://www.twilio.com/docs/whatsapp/tutorial/requesting-access-to-whatsapp).
-It can record expenses and submit an expense report using the designated
-endpoint.
+It provides a webhook which Twilio can `POST` to, so that it may either record
+an expense or create a report.
 
 When standing up the server locally, please visit `localhost:8000/docs` to read
 the docs.
@@ -114,6 +114,9 @@ endpoints, respectively.
 ```bash
 curl --location --request POST 'localhost:8000/twilio?From=+57123456789&Body=report'
 ```
+
+Note that the sender in the `From` query param must be authorized in the
+`ALLOWED_FROM` environment variable.
 
 ## Run with Docker
 
