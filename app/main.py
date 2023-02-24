@@ -7,7 +7,7 @@ from math import floor
 from typing import List
 
 import pytz
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
@@ -16,7 +16,7 @@ from app.database import ExpenseType, record_expense, retrieve_expenses
 from app.logger import configure_logs
 
 # Defines desired timezone for database entries.
-TZ = pytz.timezone("America/Bogota")
+TIMEZONE = pytz.timezone("America/Bogota")
 
 # Configure logs to appear in the terminal.
 configure_logs()
@@ -30,6 +30,13 @@ class Expense(BaseModel):
 
     description: str
     value: float
+
+
+class TwilioRequest(BaseModel):
+    """Minimal representation of information sent by Twilio via webhook."""
+
+    From: str
+    Body: str
 
 
 @server.get("/", status_code=status.HTTP_200_OK)
@@ -46,7 +53,7 @@ def health_check() -> str:
 def expense(expense_type: ExpenseType, expense: Expense) -> str:
     """Endpoint to record an expense in the database."""
     message = record_expense(
-        date=datetime.now(TZ),
+        date=datetime.now(TIMEZONE),
         description=expense.description,
         type=expense_type,
         value=expense.value,
@@ -71,7 +78,7 @@ def report() -> str:
 
 
 @server.post("/twilio", status_code=status.HTTP_202_ACCEPTED)
-def twilio(request: Request) -> str:
+def twilio(request: TwilioRequest) -> str:
     """
     Interact with the Twilio WhatsApp API. This endpoint is the callback that
     must be specified in the console. It processes an incoming message and can:
@@ -87,24 +94,8 @@ def twilio(request: Request) -> str:
     2. report
     """
 
-    # Validates necessary query params are present.
-    print(request.query_params)
-    print(request.headers)
-    print(request.path_params)
-    if request.query_params.get("From") is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="From missing in query params",
-        )
-
-    if request.query_params.get("Body") is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Body missing in query params",
-        )
-
     # Replaces whitespace with a plus sign.
-    from_param = request.query_params["From"].replace(" ", "+")
+    from_param = request.From.replace(" ", "+")
 
     # Validates the sender is authorized.
     allowed_from = os.environ.get("ALLOWED_FROM").split(",")
@@ -116,7 +107,7 @@ def twilio(request: Request) -> str:
         )
 
     # If the first three characters are "ess" or "non", an expense is recorded.
-    body = request.query_params["Body"].lower()
+    body = request.Body.lower()
     if body[0:4] in ["ess ", "non "]:
         logging.info("Recording an expense from a Twilio message")
         request = body.split(" ")
@@ -135,7 +126,7 @@ def twilio(request: Request) -> str:
 
         # Records the expense in the database.
         message = record_expense(
-            date=datetime.now(TZ),
+            date=datetime.now(TIMEZONE),
             description=description,
             type=expense_type,
             value=value,
