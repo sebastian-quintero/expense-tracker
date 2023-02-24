@@ -138,3 +138,6 @@ Now you can make all the same requests that were described in the previous
 section, but to port `80`. Make sure that there is a database server running in
 the same container where the server is being initialized and that the proper
 table has been created.
+
+You can see the logs of your container with `docker logs expense-tracker` or
+follow them adding the `-f` flag before the container name.

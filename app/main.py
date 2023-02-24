@@ -32,13 +32,6 @@ class Expense(BaseModel):
     value: float
 
 
-class TwilioRequest(BaseModel):
-    """Minimal representation of information sent by Twilio via webhook."""
-
-    From: str
-    Body: str
-
-
 @server.get("/", status_code=status.HTTP_200_OK)
 def health_check() -> str:
     """Endpoint to check that the server is running."""
@@ -77,8 +70,8 @@ def report() -> str:
     return message
 
 
-@server.post("/twilio", status_code=status.HTTP_202_ACCEPTED)
-def twilio(request: TwilioRequest) -> str:
+@server.get("/twilio", status_code=status.HTTP_202_ACCEPTED)
+def twilio(From: str, Body: str) -> str:
     """
     Interact with the Twilio WhatsApp API. This endpoint is the callback that
     must be specified in the console. It processes an incoming message and can:
@@ -95,7 +88,7 @@ def twilio(request: TwilioRequest) -> str:
     """
 
     # Replaces whitespace with a plus sign.
-    from_param = request.From.replace(" ", "+")
+    from_param = From.replace(" ", "+")
 
     # Validates the sender is authorized.
     allowed_from = os.environ.get("ALLOWED_FROM").split(",")
@@ -107,7 +100,7 @@ def twilio(request: TwilioRequest) -> str:
         )
 
     # If the first three characters are "ess" or "non", an expense is recorded.
-    body = request.Body.lower()
+    body = Body.lower()
     if body[0:4] in ["ess ", "non "]:
         logging.info("Recording an expense from a Twilio message")
         request = body.split(" ")
