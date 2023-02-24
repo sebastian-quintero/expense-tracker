@@ -7,7 +7,7 @@ from math import floor
 from typing import List
 
 import pytz
-from fastapi import FastAPI, Form, HTTPException, status
+from fastapi import FastAPI, Form, HTTPException, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
@@ -71,7 +71,7 @@ def report() -> str:
 
 
 @server.post("/twilio", status_code=status.HTTP_202_ACCEPTED)
-def twilio(From: str = Form(), Body: str = Form()) -> str:
+def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
     """
     Interact with the Twilio WhatsApp API. This endpoint is the callback that
     must be specified in the console. It processes an incoming message and can:
@@ -89,6 +89,9 @@ def twilio(From: str = Form(), Body: str = Form()) -> str:
     Read more about setting up a webhook endpoint at:
     https://www.twilio.com/docs/messaging/guides/webhook-request
     """
+
+    # Set response headers.
+    response.headers["Content-Type"] = "text/xml"
 
     # Replaces whitespace with a plus sign.
     from_param = From.replace(" ", "+")
