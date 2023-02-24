@@ -90,9 +90,6 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
     https://www.twilio.com/docs/messaging/guides/webhook-request
     """
 
-    # Set response headers.
-    response.headers["Content-Type"] = "text/xml"
-
     # Replaces whitespace with a plus sign.
     from_param = From.replace(" ", "+")
 
@@ -104,6 +101,11 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Sender {from_param} is unauthorized",
         )
+
+    # Response properties.
+    status_code = status.HTTP_202_ACCEPTED
+    headers = {"Content-Type": "text/xml"}
+    media_type = "text/xml"
 
     # If the first three characters are "ess" or "non", an expense is recorded.
     body = Body.lower()
@@ -135,7 +137,14 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
         response = MessagingResponse()
         response.message(message)
 
-        return str(response)
+        # Return a custom FastAPI response to set headers and avoid duplicate
+        # content-type key.
+        return Response(
+            content=str(response),
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+        )
 
     # If the message just says "report", an expense report is requested.
     if body == "report":
@@ -149,7 +158,14 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
         response = MessagingResponse()
         response.message(message)
 
-        return str(response)
+        # Return a custom FastAPI response to set headers and avoid duplicate
+        # content-type key.
+        return Response(
+            content=str(response),
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
+        )
 
     # A different message than what is expected results in an error.
     raise HTTPException(
