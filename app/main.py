@@ -88,6 +88,9 @@ def twilio(request: Request) -> str:
     """
 
     # Validates necessary query params are present.
+    print(request.query_params)
+    print(request.headers)
+    print(request.path_params)
     if request.query_params.get("From") is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
