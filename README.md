@@ -3,13 +3,21 @@
 Track expenses and get a report, tallying them up monthly and classifying by
 type: essential and non-essential.
 
-This project uses [FastAPI](https://fastapi.tiangolo.com) to stand up a server
-and [MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database, and
+This project uses [FastAPI](https://fastapi.tiangolo.com) to stand up a server,
+[MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database, and
 [SQLModel](https://www.google.com/search?client=safari&rls=en&q=sql+tiangolo&ie=UTF-8&oe=UTF-8)
 to interact with it. Please make sure you have `mysql` installed and there is a
 MySQL server available. You can visit [this
 tutorial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html) to learn more
 about standing up a MySQL server.
+
+The server is enabled to interact with [Twilio's WhatsApp
+API](https://www.twilio.com/docs/whatsapp/tutorial/requesting-access-to-whatsapp).
+It can record expenses and submit an expense report using the designated
+endpoint.
+
+When standing up the server locally, please visit `localhost:8000/docs` to read
+the docs.
 
 ## Creating the database and expenses table
 
@@ -49,6 +57,8 @@ Required environment variables (with sensible defaults):
 * `DDBB_PASSWORD`=`your-unique-password` || The password for the database server.
 * `DDBB_HOST`=`localhost` || The host of the database server.
 * `DDBB_PORT`=`3306` || The port of the database server.
+* `ALLOWED_FROM`=`+123456789,+57123456789` || Comma-separated `E.164`-formatted
+phone numbers allowed as senders for the `twilio` endpoint.
 
 Before running the app, make sure the MySQL database server is running, the
 `expenses.expenses` table is created and the environment variables are set.
@@ -59,6 +69,9 @@ Run the app:
 uvicorn app.main:server --reload
 ```
 
+Query the docs. Go to your web browser and visit the following url:
+`localhost:8000/docs`.
+
 Perform a health check:
 
 ```bash
@@ -66,20 +79,17 @@ curl --location --request GET 'localhost:8000' \
 --header 'Content-Type: application/json'
 ```
 
-Query the docs. Go to your web browser and visit the following url:
-`localhost:8000/docs`.
-
 Record an expense. Please note that the path param can be either:
 
 * `ess`: essential
 * `non`: non-essential
 
 ```bash
-curl --location --request POST 'localhost:8000/expense/ess' \
+curl --location --request PUT 'localhost:8000/expense/non' \
 --header 'Content-Type: application/json' \
---data-raw '{
-    "description": "An essential expense",
-    "value": 303456
+--data '{
+    "description": "A non-essential expense",
+    "value": 45000
 }'
 ```
 
@@ -90,6 +100,19 @@ Retrieve an expense report.
 
 ```bash
 curl --location --request GET 'localhost:8000/report'
+```
+
+A webhook can be submitted from Twilio. The body can be of the form:
+
+* `<expense_type> <value> <description>`. E.g.: `non 45000 dunkin'donuts`, or `ess
+  3500 tax invoice`.
+* `report`.
+
+These two messages are equivalent to requesting the `expense` and `report`
+endpoints, respectively.
+
+```bash
+curl --location --request POST 'localhost:8000/twilio?From=+57123456789&Body=report'
 ```
 
 ## Run with Docker

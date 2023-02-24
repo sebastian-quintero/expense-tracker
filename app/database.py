@@ -24,6 +24,13 @@ class ExpenseType(str, Enum):
     essential = "ess"
     non_essential = "non"
 
+    @classmethod
+    def from_str(cls, expense_type: str):
+        if expense_type == "ess":
+            return cls.essential
+
+        return cls.non_essential
+
 
 class Expenses(SQLModel, table=True):
     """Represents the expenses table."""
@@ -40,8 +47,9 @@ def record_expense(
     description: str,
     type: ExpenseType,
     value: float,
-):
+) -> str:
     """Record an expense to the expenses.expenses table."""
+
     expense = Expenses(
         date=date,
         description=description,
@@ -54,7 +62,11 @@ def record_expense(
     with Session(ENGINE) as session:
         session.add(expense)
         session.commit()
-    logging.info("Successfully recorded expense")
+
+    log = f"Successfully recorded expense type: {type.name}, value: {value}, description: {description}"
+    logging.info(log)
+
+    return log
 
 
 def retrieve_expenses(date: datetime) -> List[Expenses]:
