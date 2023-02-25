@@ -63,8 +63,10 @@ def record_expense(
         session.add(expense)
         session.commit()
 
+    # Create a compelling log that is returned to the user.
     log = "✅ Successfully recorded expense! 🎉\n"
-    log += f"\t❓ Type: {type.value}\n"
+    emoji = "🍔" if type == ExpenseType.non_essential else "🌽"
+    log += f"\t❓ Type: {emoji} {type.value}\n"
     log += f"\t🤑 Value: {'${:,.2f}'.format(value)}\n"
     log += f"\t🔍 Description: {description}\n"
     logging.info(log)

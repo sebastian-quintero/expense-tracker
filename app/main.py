@@ -188,7 +188,7 @@ def tally(expenses: List[Expenses]) -> str:
     current = {}
     for expense in expenses:
         # Tally by month.
-        key = f"{expense.date.month}-{calendar.month_name[expense.date.month]}"
+        key = f"{expense.date.month}. {calendar.month_name[expense.date.month]}"
         total[key] += expense.value
 
         # Tally by type (also by month).
@@ -210,29 +210,30 @@ def tally(expenses: List[Expenses]) -> str:
     non = dict(sorted(non.items()))
 
     # Build a single string as a message.
-    message = "🤓 This is your expense 💵 report 📊:\n\n"
+    message = "🤓 This is your expense 💵 report 📊.\n\n\n"
+    message = "Monthly 📅 totals 💯:\n"
 
     # Describe monthly totals.
     for month, value in total.items():
         # Format to monetary units.
-        message += f"💰💰 {month} = {'${:,.2f}'.format(value)}\n"
+        message += f"💰 {month} = {'${:,.2f}'.format(value)}\n"
 
         # Only report essential and non-essential if they exist.
         if ess.get(month) is not None:
             ess_value = ess[month]
             ess_ratio = floor((ess_value / value) * 100)
-            message += (
-                f"\t🌽 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
-            )
+            message += f"🌽 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
 
         if non.get(month) is not None:
             non_value = non[month]
             non_ratio = floor((non_value / value) * 100)
             message += (
-                f"\t🍔 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
+                f"🍔 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
             )
 
-        message += "\n\n"
+        message += "🐮 -- 🐮 -- 🐮 -- 🐮"
+
+    message += "\n\n"
 
     # Get the top expenses for the current month.
     current = dict(sorted(current.items(), key=lambda item: item[1], reverse=True))
@@ -241,8 +242,10 @@ def tally(expenses: List[Expenses]) -> str:
     for ix, (k, v) in enumerate(top.items()):
         components = k.split(";")
         type, date, description = components[0], components[1], components[2]
-        message += f"🔥 {ix + 1}. {'${:,.2f}'.format(v)}\n"
-        message += f"\t{type}({date}): {description}\n"
+        message += f"🔥 {ix + 1}. {'${:,.2f}'.format(v)} ({date})\n"
+        emoji = "🍔" if type == ExpenseType.non_essential else "🌽"
+        message += f"\t{emoji} {type}\n"
+        message += f"\t{description}\n"
 
     logging.info("Successfully tallied expenses by month and type")
 
