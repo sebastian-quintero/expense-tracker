@@ -210,8 +210,8 @@ def tally(expenses: List[Expenses]) -> str:
     non = dict(sorted(non.items()))
 
     # Build a single string as a message.
-    message = "🤓 This is your expense 💵 report 📊.\n\n\n"
-    message = "Monthly 📅 totals 💯:\n"
+    message = "*🤓 This is your expense 💵 report 📊.*\n\n\n"
+    message += "*_Monthly 📅 totals 💯:_*\n"
 
     # Describe monthly totals.
     for month, value in total.items():
@@ -231,14 +231,14 @@ def tally(expenses: List[Expenses]) -> str:
                 f"🍔 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
             )
 
-        message += "🐮 -- 🐮 -- 🐮 -- 🐮"
+        message += "🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮"
 
     message += "\n\n"
 
     # Get the top expenses for the current month.
+    message += "*_🙀 These are the top 🔝 expenses this month 🚨:_*\n"
     current = dict(sorted(current.items(), key=lambda item: item[1], reverse=True))
     top = {k: current[k] for k in list(current.keys())[:10]}
-    message += "🙀 These are the top 🔝 expenses this month 🚨:\n"
     for ix, (k, v) in enumerate(top.items()):
         components = k.split(";")
         type, date, description = components[0], components[1], components[2]
