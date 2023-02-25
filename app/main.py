@@ -222,16 +222,16 @@ def tally(expenses: List[Expenses]) -> str:
         if ess.get(month) is not None:
             ess_value = ess[month]
             ess_ratio = floor((ess_value / value) * 100)
-            message += f"🌽 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
+            message += f"🌽 Essential ({ess_ratio}%)\n"
+            message += f"\t{'${:,.2f}'.format(ess_value)}\n"
 
         if non.get(month) is not None:
             non_value = non[month]
             non_ratio = floor((non_value / value) * 100)
-            message += (
-                f"🍔 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
-            )
+            message += f"🍔 Non essential ({non_ratio}%)\n"
+            message += f"\t{'${:,.2f}'.format(non_value)}\n"
 
-        message += "🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮 -- 🐮"
+        message += "----------- ⏳ -----------"
 
     message += "\n\n"
 
