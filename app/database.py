@@ -21,8 +21,8 @@ ENGINE = create_engine(
 class ExpenseType(str, Enum):
     """Type of expenses that can be recorded."""
 
-    essential = "ess"
-    non_essential = "non"
+    essential = "Essential"
+    non_essential = "Non essential"
 
     @classmethod
     def from_str(cls, expense_type: str):
@@ -63,7 +63,7 @@ def record_expense(
         session.add(expense)
         session.commit()
 
-    log = f"Successfully recorded expense type: {type.name}, value: {value}, description: {description}"
+    log = f"Successfully recorded expense type: {type.value}, value: {value}, description: {description}"
     logging.info(log)
 
     return log

@@ -12,7 +12,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
 
-from app.database import ExpenseType, record_expense, retrieve_expenses
+from app.database import ExpenseType, Expenses, record_expense, retrieve_expenses
 from app.logger import configure_logs
 
 # Defines desired timezone for database entries.
@@ -174,24 +174,35 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
     )
 
 
-def tally(expenses: List[Expense]) -> str:
+def tally(expenses: List[Expenses]) -> str:
     """Tally expenses by creating monthly totals and classifying them by type:
     essential vs. non essential. Returns a single formatted string with all the
     information."""
+
+    current_month = datetime.now(TIMEZONE).month
 
     # Tally expenses by type.
     total = defaultdict(int)
     ess = defaultdict(int)
     non = defaultdict(int)
+    current = {}
     for expense in expenses:
         # Tally by month.
         key = f"{expense.date.month}-{calendar.month_name[expense.date.month]}"
         total[key] += expense.value
 
-        if expense.type == ExpenseType.essential:
+        # Tally by type (also by month).
+        expense_type = ExpenseType.from_str(expense.type)
+        if expense_type == ExpenseType.essential:
             ess[key] += expense.value
         else:
             non[key] += expense.value
+
+        # Gather the current month's expenses to later get the highest.
+        if expense.date.month == current_month:
+            current[
+                f"{expense_type.value};{expense.date};{expense.description}"
+            ] = expense.value
 
     # Sort keys.
     total = dict(sorted(total.items()))
@@ -199,23 +210,34 @@ def tally(expenses: List[Expense]) -> str:
     non = dict(sorted(non.items()))
 
     # Build a single string as a message.
-    message = ""
+    message = "🤓 This is your expense report 💵:\n\n"
+
+    # Describe monthly totals.
     for month, value in total.items():
         # Format to monetary units.
-        message += f"\n{month} = {'${:,.2f}'.format(value)} || "
+        message += f"💰💰 {month} = {'${:,.2f}'.format(value)}\n"
 
         # Only report essential and non-essential if they exist.
         if ess.get(month) is not None:
             ess_value = ess[month]
             ess_ratio = floor((ess_value / value) * 100)
-            message += f"| ess = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%) "
+            message += f"\t\t 💧 🌽 👧🏼 👼🏼 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
 
         if non.get(month) is not None:
             non_value = non[month]
             non_ratio = floor((non_value / value) * 100)
-            message += f"| non = {'${:,.2f}'.format(non_value)} ({non_ratio}%) "
+            message += f"\t\t 🍔 🍿 🎾 🩰 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
 
-        message += "\n"
+        message += "\n\n"
+
+    # Get the top expenses for the current month.
+    current = dict(sorted(current.items(), key=lambda item: item[1], reverse=True))
+    top = {k: current[k] for k in list(current.keys())[:10]}
+    message += "🙀 These are the top 🔝 expenses this month 🚨:\n\n"
+    for ix, (k, v) in enumerate(top.items()):
+        components = k.split(";")
+        type, date, description = components[0], components[1], components[2]
+        message += f"\t\t🔥 {ix + 1}. {type}\t|{date}\t|{'${:,.2f}'.format(v)}|\t\t{description}\n"
 
     logging.info("Successfully tallied expenses by month and type")
 
