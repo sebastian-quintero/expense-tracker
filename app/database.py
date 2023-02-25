@@ -63,7 +63,10 @@ def record_expense(
         session.add(expense)
         session.commit()
 
-    log = f"Successfully recorded expense type: {type.value}, value: {value}, description: {description}"
+    log = "✅ Successfully recorded expense! 🎉\n"
+    log += f"\t❓ Type: {type.value}\n"
+    log += f"\t🤑 Value: {'${:,.2f}'.format(value)}\n"
+    log += f"\t🔍 Description: {description}\n"
     logging.info(log)
 
     return log

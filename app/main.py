@@ -201,7 +201,7 @@ def tally(expenses: List[Expenses]) -> str:
         # Gather the current month's expenses to later get the highest.
         if expense.date.month == current_month:
             current[
-                f"{expense_type.value};{expense.date};{expense.description}"
+                f"{expense_type.value};{expense.date.strftime('%d/%m/%Y')};{expense.description}"
             ] = expense.value
 
     # Sort keys.
@@ -210,7 +210,7 @@ def tally(expenses: List[Expenses]) -> str:
     non = dict(sorted(non.items()))
 
     # Build a single string as a message.
-    message = "🤓 This is your expense report 💵:\n\n"
+    message = "🤓 This is your expense 💵 report 📊:\n\n"
 
     # Describe monthly totals.
     for month, value in total.items():
@@ -221,23 +221,28 @@ def tally(expenses: List[Expenses]) -> str:
         if ess.get(month) is not None:
             ess_value = ess[month]
             ess_ratio = floor((ess_value / value) * 100)
-            message += f"\t\t 💧 🌽 👧🏼 👼🏼 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
+            message += (
+                f"\t🌽 Essential = {'${:,.2f}'.format(ess_value)} ({ess_ratio}%)\n"
+            )
 
         if non.get(month) is not None:
             non_value = non[month]
             non_ratio = floor((non_value / value) * 100)
-            message += f"\t\t 🍔 🍿 🎾 🩰 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
+            message += (
+                f"\t🍔 Non essential = {'${:,.2f}'.format(non_value)} ({non_ratio}%)\n"
+            )
 
         message += "\n\n"
 
     # Get the top expenses for the current month.
     current = dict(sorted(current.items(), key=lambda item: item[1], reverse=True))
     top = {k: current[k] for k in list(current.keys())[:10]}
-    message += "🙀 These are the top 🔝 expenses this month 🚨:\n\n"
+    message += "🙀 These are the top 🔝 expenses this month 🚨:\n"
     for ix, (k, v) in enumerate(top.items()):
         components = k.split(";")
         type, date, description = components[0], components[1], components[2]
-        message += f"\t\t🔥 {ix + 1}. {type}\t|{date}\t|{'${:,.2f}'.format(v)}|\t\t{description}\n"
+        message += f"🔥 {ix + 1}. {'${:,.2f}'.format(v)}\n"
+        message += f"\t{type}({date}): {description}\n"
 
     logging.info("Successfully tallied expenses by month and type")
 
