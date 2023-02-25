@@ -26,7 +26,7 @@ class ExpenseType(str, Enum):
 
     @classmethod
     def from_str(cls, expense_type: str):
-        if expense_type == "ess":
+        if expense_type == cls.essential.value:
             return cls.essential
 
         return cls.non_essential
