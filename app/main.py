@@ -1,16 +1,12 @@
 import logging
 import os
 
-import pytz
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Response, status
 from twilio.twiml.messaging_response import MessagingResponse
 
 from app.logger import configure_logs
 from app.twilio import process_request
-
-# Defines desired timezone for database entries.
-TIMEZONE = pytz.timezone("America/Bogota")
 
 # Configure logs to appear in the terminal.
 configure_logs()
@@ -58,7 +54,7 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
 
     # Build the Twilio TwiML response.
     response = MessagingResponse()
-    message = process_request(body=Body.lower(), timezone=TIMEZONE)
+    message = process_request(body=Body.lower())
     response.message(message)
 
     # Return a custom FastAPI response to set headers and avoid duplicate

@@ -1,14 +1,13 @@
 # expense-tracker
 
-Track financials via WhatsApp and get a full report. You can track expenses and
-incomes.
+Track expenses and incomes via WhatsApp and get a full report.
 
 This project uses:
 
 - [FastAPI](https://fastapi.tiangolo.com) to stand up a server.
 - [MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database.
 - [SQLModel](https://www.google.com/search?client=safari&rls=en&q=sql+tiangolo&ie=UTF-8&oe=UTF-8)
-  to interact with tje database.
+  to interact with the database.
 - [Fixer API](https://apilayer.com/marketplace/fixer-api) for currency
   conversions.
 - [Twilio's WhatsApp
@@ -23,8 +22,8 @@ about standing up a MySQL server.
 
 The server is enabled to interact with [Twilio's WhatsApp
 API](https://www.twilio.com/docs/whatsapp/tutorial/requesting-access-to-whatsapp).
-It provides a webhook which Twilio can `POST` to, so that it may either record
-a transaction, create a report and other useful commands.
+It provides a webhook which Twilio can `POST` to, so that it may record a
+transaction, create a report and other useful commands.
 
 When standing up the server locally, please visit `localhost:8000/docs` to read
 the docs.

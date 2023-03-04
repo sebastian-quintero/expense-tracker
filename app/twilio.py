@@ -10,18 +10,17 @@ from enum import IntEnum
 from math import floor
 from typing import List
 
+import pytz
 from dotenv import load_dotenv
 from requests import get
 
-from app.database import (
-    DEFAULT_CURRENCY,
-    Transactions,
-    record_transaction,
-    retrieve_transactions,
-)
+from app.database import Transactions, record_transaction, retrieve_transactions
 
 # Load environment variables from a .env file.
 load_dotenv()
+
+# Default currency for the app.
+DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY")
 
 # Regular expression to match transaction commands.
 TRANSACTION_REGEXP = (
@@ -79,29 +78,32 @@ class TransactionCommand:
 
 
 # The information related to the commands used for recording a transaction.
+ESSENTIAL = TransactionCommand(
+    command="ess",
+    label="Essential",
+    emoji="🌽",
+    sense=TransactionSense.negative,
+)
+NON_ESSENTIAL = TransactionCommand(
+    command="non",
+    label="Non essential",
+    emoji="🍔",
+    sense=TransactionSense.negative,
+)
+INCOME = TransactionCommand(
+    command="inc",
+    label="Income",
+    emoji="💸",
+    sense=TransactionSense.positive,
+)
 TRANSACTION_COMMANDS = {
-    "ess": TransactionCommand(
-        command="ess",
-        label="Essential",
-        emoji="🌽",
-        sense=TransactionSense.negative,
-    ),
-    "non": TransactionCommand(
-        command="non",
-        label="Non essential",
-        emoji="🍔",
-        sense=TransactionSense.negative,
-    ),
-    "inc": TransactionCommand(
-        command="inc",
-        label="Income",
-        emoji="💸",
-        sense=TransactionSense.positive,
-    ),
+    ESSENTIAL.command: ESSENTIAL,
+    NON_ESSENTIAL.command: NON_ESSENTIAL,
+    INCOME.command: INCOME,
 }
 
 
-def process_request(body: str, timezone: datetime.tzinfo) -> str:
+def process_request(body: str) -> str:
     """Process a request coming from the Twilio WhatsApp Webhook and returns a
     message that should be displayed to the user."""
 
@@ -122,7 +124,7 @@ def process_request(body: str, timezone: datetime.tzinfo) -> str:
 
         # Retrieves the expenses from the database and tallies them.
         transactions = retrieve_transactions(date=datetime.now())
-        return report(transactions=transactions, timezone=timezone)
+        return report(transactions=transactions)
 
     # Process a new tramsaction.
     if re.compile(TRANSACTION_REGEXP).match(command):
@@ -165,7 +167,7 @@ def process_request(body: str, timezone: datetime.tzinfo) -> str:
         currency = transaction_command.currency
         val_conv = value_converted * transaction_command.sense.value
         record_transaction(
-            created_at=datetime.now(timezone),
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
             description=description,
             label=label,
             value=val,
@@ -186,62 +188,88 @@ def process_request(body: str, timezone: datetime.tzinfo) -> str:
     return error(f'The message "{body}" could not be processed')
 
 
-def report(transactions: List[Transactions], timezone: datetime.tzinfo) -> str:
+def report(transactions: List[Transactions]) -> str:
     """Tally transactions by creating monthly totals and differentiating
     between credits and debits. Returns a single formatted string with all the
     information."""
 
-    current_month = datetime.now(timezone).month
+    current_month = datetime.now(pytz.timezone(os.getenv("TIMEZONE"))).month
 
     # Tally transactions by type.
-    total = defaultdict(int)
-    ess = defaultdict(int)
-    non = defaultdict(int)
+    totals = defaultdict(lambda: defaultdict(int))
     current = {}
     for transaction in transactions:
         # Tally by month.
-        key = f"{transaction.created_at.month}. {calendar.month_name[transaction.created_at.month]}"
-        total[key] += transaction.value
-
-        # Tally by type (also by month).
-        expense_type = str.from_str(transaction.label)
-        if expense_type == str.essential:
-            ess[key] += transaction.value
-        else:
-            non[key] += transaction.value
+        month_key = f"{transaction.created_at.month}. {calendar.month_name[transaction.created_at.month]}"
+        totals[month_key][transaction.label] += transaction.value_converted
 
         # Gather the current month's expenses to later get the highest.
-        if transaction.created_at.month == current_month:
+        if (
+            transaction.created_at.month == current_month
+            and transaction.value_converted < 0
+        ):
             current[
-                f"{expense_type.value};{transaction.created_at.strftime('%d/%m/%Y')};{transaction.description}"
-            ] = transaction.value
+                f"{transaction.label};{transaction.created_at.strftime('%d/%m/%Y')};{transaction.description}"
+            ] = abs(transaction.value_converted)
 
     # Sort keys.
-    total = dict(sorted(total.items()))
-    ess = dict(sorted(ess.items()))
-    non = dict(sorted(non.items()))
+    totals = dict(sorted(totals.items(), reverse=True))
 
     # Build a single string as a message.
-    message = "*🤓 This is your financial 💵 report 📊.*\n\n\n"
+    message = f"*🤓 This is your financial 💵 report 📊 in {DEFAULT_CURRENCY}.*\n\n\n"
     message += "*_Monthly 📅 totals 💯:_*\n"
 
     # Describe monthly totals.
-    for month, value in total.items():
-        # Format to monetary units.
-        message += f"💰 {month} = {'${:,.2f}'.format(value)}\n"
+    for month, financials in totals.items():
+        message += f"💰 {month}\n"
 
-        # Only report essential and non-essential if they exist.
-        if ess.get(month) is not None:
-            ess_value = ess[month]
-            ess_ratio = floor((ess_value / value) * 100)
-            message += f"🌽 Essential ({ess_ratio}%)\n"
-            message += f"\t{'${:,.2f}'.format(ess_value)}\n"
+        # Get the actual financials.
+        debits = financials.get(INCOME.label, 0)
+        essential_credits = financials.get(ESSENTIAL.label, 0)
+        non_essential_credits = financials.get(NON_ESSENTIAL.label, 0)
+        financial_credits = essential_credits + non_essential_credits
 
-        if non.get(month) is not None:
-            non_value = non[month]
-            non_ratio = floor((non_value / value) * 100)
-            message += f"🍔 Non essential ({non_ratio}%)\n"
-            message += f"\t{'${:,.2f}'.format(non_value)}\n"
+        # Check if there are debits.
+        if debits > 0:
+            message += (
+                f"🟢🟢 {INCOME.emoji} {INCOME.label} = {'${:,.2f}'.format(debits)}\n"
+            )
+
+            # Only report savings when there are credits.
+            if financial_credits < 0:
+                savings = debits + financial_credits
+                savings_ratio = floor((savings / debits) * 100)
+                message += (
+                    f"\t🥂 Savings ({savings_ratio}%)\n"
+                    f"\t🥂 {'${:,.2f}'.format(savings)}\n"
+                )
+
+        # Check if there are credits.
+        if financial_credits < 0:
+            emojis = f"🔴🔴 {ESSENTIAL.emoji} {NON_ESSENTIAL.emoji}"
+            message += (
+                f"{emojis} Expenses = {'${:,.2f}'.format(abs(financial_credits))}\n"
+            )
+
+            # Report essential credits, if they exist.
+            if essential_credits < 0:
+                essential_ratio = abs(
+                    floor((essential_credits / financial_credits) * 100)
+                )
+                message += (
+                    f"\t{ESSENTIAL.emoji} {ESSENTIAL.label} ({essential_ratio}%)\n"
+                )
+                message += (
+                    f"\t{ESSENTIAL.emoji} {'${:,.2f}'.format(abs(essential_credits))}\n"
+                )
+
+            # Report non essential credits, if they exist.
+            if non_essential_credits < 0:
+                non_essential_ratio = abs(
+                    floor((non_essential_credits / financial_credits) * 100)
+                )
+                message += f"\t{NON_ESSENTIAL.emoji} {NON_ESSENTIAL.label} ({non_essential_ratio}%)\n"
+                message += f"\t{NON_ESSENTIAL.emoji} {'${:,.2f}'.format(abs(non_essential_credits))}\n"
 
         message += "----------- ⏳ -----------\n"
 
@@ -253,10 +281,10 @@ def report(transactions: List[Transactions], timezone: datetime.tzinfo) -> str:
     top = {k: current[k] for k in list(current.keys())[:10]}
     for ix, (k, v) in enumerate(top.items()):
         components = k.split(";")
-        type, date, description = components[0], components[1], components[2]
+        label, date, description = components[0], components[1], components[2]
         message += f"🔥 {ix + 1}. {'${:,.2f}'.format(v)} ({date})\n"
-        emoji = "🍔" if type == str.non_essential else "🌽"
-        message += f"\t{emoji} {type}\n"
+        emoji = ESSENTIAL.emoji if label == ESSENTIAL.label else NON_ESSENTIAL.label
+        message += f"\t{emoji} {label}\n"
         message += f"\t{description}\n"
 
     logging.info("successfully created the financial report")
@@ -276,16 +304,16 @@ def help() -> str:
     # Intro
     message = "👻 You asked for help! Here is what you can type 🤔:\n\n\n"
 
-    # Report
-    message += "📲 ```report```\n"
-    message += "Type this to get a financial report of your transactions 📊.\n\n"
-
     # Help
-    message += "📲 ```help```\n"
+    message += "*📲 ```help```*\n"
     message += "Show this help menu 🥶.\n\n"
 
+    # Report
+    message += "*📲 ```report```*\n"
+    message += "Type this to get a financial report of your transactions 📊.\n\n"
+
     # Essential expense
-    message += "📲 ```ess <value> <description>```\n"
+    message += "*📲 ```ess <value> <description>```*\n"
     message += "Record an Essential 🌽 expense (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```ess-usd``` 🇺🇸. "
     automatically = (
@@ -294,13 +322,13 @@ def help() -> str:
     message += automatically
 
     # Non essential expense
-    message += "📲 ```non <value> <description>```\n"
+    message += "*📲 ```non <value> <description>```*\n"
     message += "Record a Non essential 🍔 expense (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```non-usd``` 🇺🇸. "
     message += automatically
 
     # Income
-    message += "📲 ```inc <value> <description>```\n"
+    message += "*📲 ```inc <value> <description>``*`\n"
     message += "Record an Income 💸 (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```inc-usd``` 🇺🇸. "
     message += automatically
@@ -309,7 +337,7 @@ def help() -> str:
 
 
 def convert(value: float, currency: str) -> float:
-    """convert the value to the default currency used."""
+    """convert the value to the default currency used with an external API."""
 
     url = f"https://api.apilayer.com/fixer/latest?base={currency}&symbols={DEFAULT_CURRENCY}"
     headers = {"apikey": os.getenv("FIXER_API_KEY")}

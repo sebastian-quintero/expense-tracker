@@ -20,9 +20,6 @@ ENGINE = create_engine(
     echo=False,
 )
 
-# Default currency for the app.
-DEFAULT_CURRENCY = "COP"
-
 
 class Transactions(SQLModel, table=True):
     """Represents the expenses table."""
