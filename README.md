@@ -1,49 +1,70 @@
 # expense-tracker
 
-Track expenses and get a report, tallying them up monthly and classifying by
-type: essential and non-essential.
+Track financials via WhatsApp and get a full report. You can track expenses and
+incomes.
 
-This project uses [FastAPI](https://fastapi.tiangolo.com) to stand up a server,
-[MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database, and
-[SQLModel](https://www.google.com/search?client=safari&rls=en&q=sql+tiangolo&ie=UTF-8&oe=UTF-8)
-to interact with it. Please make sure you have `mysql` installed and there is a
-MySQL server available. You can visit [this
+This project uses:
+
+- [FastAPI](https://fastapi.tiangolo.com) to stand up a server.
+- [MySQL](https://dev.mysql.com/doc/refman/8.0/en/) as a database.
+- [SQLModel](https://www.google.com/search?client=safari&rls=en&q=sql+tiangolo&ie=UTF-8&oe=UTF-8)
+  to interact with tje database.
+- [Fixer API](https://apilayer.com/marketplace/fixer-api) for currency
+  conversions.
+- [Twilio's WhatsApp
+  API](https://www.twilio.com/docs/whatsapp/tutorial/requesting-access-to-whatsapp)
+  to enable an endpoint that can be used as a webhook to respond to WhatsApp
+  messages.
+  
+Please make sure you have `mysql` installed and there is a MySQL server
+available. You can visit [this
 tutorial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html) to learn more
 about standing up a MySQL server.
 
 The server is enabled to interact with [Twilio's WhatsApp
 API](https://www.twilio.com/docs/whatsapp/tutorial/requesting-access-to-whatsapp).
 It provides a webhook which Twilio can `POST` to, so that it may either record
-an expense or create a report.
+a transaction, create a report and other useful commands.
 
 When standing up the server locally, please visit `localhost:8000/docs` to read
 the docs.
 
-## Creating the database and expenses table
+## Creating the database and tables
 
-In a terminal, connect to the MySQL database server. Once the `mysql>` prompt
-is available, you can create the database and table.
+In a terminal, connect to the MySQL database server. You can visit [this
+tutorial](https://dev.mysql.com/doc/refman/8.0/en/tutorial.html) to learn how
+to connect locally to your server.
+
+To connect locally to the server you can use this command:
+
+```bash
+mysql -u user -p
+```
+
+Once the `mysql>` prompt is available, you can create the database and tables.
 
 Create the database:
 
 ```sql
-mysql> CREATE DATABASE expenses;
+mysql> CREATE DATABASE main;
 ```
 
 Use the database you just created:
 
 ```sql
-mysql> USE expenses;
+mysql> USE main;
 ```
 
-Create the `expenses` table:
+Create the `transactions` table:
 
 ```sql
-mysql> CREATE TABLE expenses (
+mysql> CREATE TABLE transactions (
     id INT unsigned NOT NULL AUTO_INCREMENT, 
-    date DATETIME NOT NULL,
-    type VARCHAR(150) NOT NULL,
+    created_at DATETIME NOT NULL,
+    label VARCHAR(150) NOT NULL,
     value FLOAT NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    value_converted FLOAT NOT NULL,
     description VARCHAR(150) NOT NULL,
     PRIMARY KEY (id)
 );
@@ -51,17 +72,12 @@ mysql> CREATE TABLE expenses (
 
 ## Run locally
 
-Required environment variables (with sensible defaults):
-
-* `DDBB_USER`=`root` || The user of the database server.
-* `DDBB_PASSWORD`=`your-unique-password` || The password for the database server.
-* `DDBB_HOST`=`localhost` || The host of the database server.
-* `DDBB_PORT`=`3306` || The port of the database server.
-* `ALLOWED_FROM`=`+123456789,+57123456789` || Comma-separated `E.164`-formatted
-phone numbers allowed as senders for the `twilio` endpoint.
+Some environment variables are required to run the application. They should be
+defined in a standard `.env` file. Please copy the `.env.example` file into a
+`.env` and replace the values with your own.
 
 Before running the app, make sure the MySQL database server is running, the
-`expenses.expenses` table is created and the environment variables are set.
+tables are created and the environment variables are set.
 
 Run the app:
 
@@ -79,43 +95,10 @@ curl --location --request GET 'localhost:8000' \
 --header 'Content-Type: application/json'
 ```
 
-Record an expense. Please note that the path param can be either:
+A webhook can be submitted from Twilio. Please see the docs for the details on
+using the `/twilio` endpoint.
 
-* `ess`: essential
-* `non`: non-essential
-
-```bash
-curl --location --request PUT 'localhost:8000/expense/non' \
---header 'Content-Type: application/json' \
---data '{
-    "description": "A non-essential expense",
-    "value": 45000
-}'
-```
-
-At this point, new information has been added to the `expenses.expenses` table.
-You can query the database directly to look at the recorded information.
-
-Retrieve an expense report.
-
-```bash
-curl --location --request GET 'localhost:8000/report'
-```
-
-A webhook can be submitted from Twilio. The body can be of the form:
-
-* `<expense_type> <value> <description>`. E.g.: `non 45000 dunkin'donuts`, or `ess
-  3500 tax invoice`.
-* `report`.
-
-These two messages are equivalent to requesting the `expense` and `report`
-endpoints, respectively.
-
-```bash
-curl --location --request POST 'localhost:8000/twilio?From=+57123456789&Body=report'
-```
-
-Note that the sender in the `From` query param must be authorized in the
+Note that the sender in the `From` param must be authorized in the
 `ALLOWED_FROM` environment variable.
 
 ## Run with Docker
@@ -126,18 +109,15 @@ Build the image.
 docker build -t expense-tracker .
 ```
 
-Run a container using the image. Notice that a `.env.example` file is provided
-with sample environment variables. You should either replace these values or
-use a new file, such as a standard `.env`.
+Run a container using the image. Do not forget to have the environment
+variables set in the `.env` file.
 
 ```bash
 docker run -d --name expense-tracker -p 80:8000 --env-file .env --rm expense-tracker
 ```
 
 Now you can make all the same requests that were described in the previous
-section, but to port `80`. Make sure that there is a database server running in
-the same container where the server is being initialized and that the proper
-table has been created.
+section, but to port `80`.
 
 You can see the logs of your container with `docker logs expense-tracker` or
 follow them adding the `-f` flag before the container name.

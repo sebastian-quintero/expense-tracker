@@ -1,91 +1,82 @@
 import logging
 import os
 from datetime import datetime
-from enum import Enum
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+
+# Load environment variables from a .env file.
+load_dotenv()
 
 # Initializes the database engine. Use env vars to pass private info.
 ENGINE = create_engine(
-    "mysql+mysqlconnector://{user}:{password}@{host}:{port}/expenses".format(
-        user=os.environ.get("DDBB_USER"),
-        password=os.environ.get("DDBB_PASSWORD"),
-        host=os.environ.get("DDBB_HOST"),
-        port=os.environ.get("DDBB_PORT"),
+    "mysql+mysqlconnector://{user}:{password}@{host}:{port}/main".format(
+        user=os.getenv("DDBB_USER"),
+        password=os.getenv("DDBB_PASSWORD"),
+        host=os.getenv("DDBB_HOST"),
+        port=os.getenv("DDBB_PORT"),
     ),
     echo=False,
 )
 
-
-class ExpenseType(str, Enum):
-    """Type of expenses that can be recorded."""
-
-    essential = "Essential"
-    non_essential = "Non essential"
-
-    @classmethod
-    def from_str(cls, expense_type: str):
-        if expense_type in [cls.essential.value, "ess"]:
-            return cls.essential
-
-        return cls.non_essential
+# Default currency for the app.
+DEFAULT_CURRENCY = "COP"
 
 
-class Expenses(SQLModel, table=True):
+class Transactions(SQLModel, table=True):
     """Represents the expenses table."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    date: datetime
-    description: str
-    type: ExpenseType
+    created_at: datetime
+    label: str
     value: float
+    currency: str
+    value_converted: float
+    description: str
 
 
-def record_expense(
-    date: datetime,
+def record_transaction(
+    created_at: datetime,
     description: str,
-    type: ExpenseType,
+    label: str,
     value: float,
-) -> str:
-    """Record an expense to the expenses.expenses table."""
+    currency: str,
+    value_converted: float,
+):
+    """Record a transaction to the transactions table."""
 
-    expense = Expenses(
-        date=date,
-        description=description,
-        type=type,
+    transaction = Transactions(
+        created_at=created_at,
+        label=label,
         value=value,
+        currency=currency,
+        value_converted=value_converted,
+        description=description,
     )
-    logging.info(f"Created new expenses table record: {expense}")
+    logging.info(f"creating new transactions record: {transaction}")
 
     # Stores the record in the database.
     with Session(ENGINE) as session:
-        session.add(expense)
+        session.add(transaction)
         session.commit()
 
-    # Create a compelling log that is returned to the user.
-    log = "✅ Successfully recorded expense! 🎉\n"
-    emoji = "🍔" if type == ExpenseType.non_essential else "🌽"
-    log += f"\t❓ Type: {emoji} {type.value}\n"
-    log += f"\t🤑 Value: {'${:,.2f}'.format(value)}\n"
-    log += f"\t🔍 Description: {description}\n"
-    logging.info(log)
-
-    return log
+    logging.info("successfully recorded transaction")
 
 
-def retrieve_expenses(date: datetime) -> List[Expenses]:
-    """Retrieve expenses from the expenses.expenses table."""
+def retrieve_transactions(date: datetime) -> List[Transactions]:
+    """Retrieve transactions from the transactions table."""
 
     with Session(ENGINE) as session:
         # Executes statement to retrieve info from the database.
-        statement = select(Expenses).where(
-            Expenses.date >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo)
+        statement = select(Transactions).where(
+            Transactions.created_at
+            >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo)
         )
-        logging.info(f"Executing sql statement: {statement}")
-        expenses = session.exec(statement)
-        expenses = [expense for expense in expenses]
+        logging.info(f"executing sql statement: {statement}")
+        transactions = session.exec(statement)
+        transactions = [expense for expense in transactions]
 
-    logging.info("Successfully retrieved expenses")
+    logging.info("successfully retrieved transactions")
 
-    return expenses
+    return transactions
