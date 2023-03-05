@@ -111,7 +111,7 @@ def process_request(body: str) -> str:
     command = body.split(" ")[0]
     if not re.compile(COMMANDS_REGEXP).match(command):
         logging.error("command not supported")
-        return error(f'command "{command}" is not supported')
+        return error(f'Command "{command}" is not supported.')
 
     # Display the help menu.
     if command == "help":
@@ -135,16 +135,23 @@ def process_request(body: str) -> str:
         if len(request) < 3:
             logging.error("request has fewer than 3 elements")
             return error(
-                f'command "{command}" should have at least 2 spaces to record a transaction'
+                f'Command "{command}" should have at least 2 spaces to record a transaction.'
             )
 
         # Checks that the request has the correct ordering.
-        value = float(request[1])
-        if value <= 0:
-            logging.error("value from the request is invalid")
+        value = 0
+        try:
+            value = float(request[1])
+        except ValueError:
+            logging.error("cannot convert second element in the request to a float")
             return error(
-                f"Second element of the command should be the transaction value (a number) and >= 0: {request[1]}"
+                f"Second element of the command should be a numerical transaction value: {request[1]}."
             )
+        if value <= 0:
+            logging.error(
+                "value from the request is invalid, should be greather than zero"
+            )
+            return error("Value should be greater than 0.")
 
         # Gets request elements.
         description = " ".join(request[2:])
@@ -185,7 +192,7 @@ def process_request(body: str) -> str:
 
         return message
 
-    return error(f'The message "{body}" could not be processed')
+    return error(f'The message "{body}" could not be processed.')
 
 
 def report(transactions: List[Transactions]) -> str:
@@ -221,6 +228,7 @@ def report(transactions: List[Transactions]) -> str:
 
     # Describe monthly totals.
     for month, financials in totals.items():
+        message += "----------- ⏳ -----------\n"
         message += f"💰 {month}\n"
 
         # Get the actual financials.
@@ -232,7 +240,7 @@ def report(transactions: List[Transactions]) -> str:
         # Check if there are debits.
         if debits > 0:
             message += (
-                f"🟢🟢 {INCOME.emoji} {INCOME.label} = {'${:,.2f}'.format(debits)}\n"
+                f"🟢 {INCOME.emoji} {INCOME.label} = {'${:,.2f}'.format(debits)}\n"
             )
 
             # Only report savings when there are credits.
@@ -241,15 +249,12 @@ def report(transactions: List[Transactions]) -> str:
                 savings_ratio = floor((savings / debits) * 100)
                 message += (
                     f"\t🥂 Savings ({savings_ratio}%)\n"
-                    f"\t🥂 {'${:,.2f}'.format(savings)}\n"
+                    f"\t   👉 {'${:,.2f}'.format(savings)}\n"
                 )
 
         # Check if there are credits.
         if financial_credits < 0:
-            emojis = f"🔴🔴 {ESSENTIAL.emoji} {NON_ESSENTIAL.emoji}"
-            message += (
-                f"{emojis} Expenses = {'${:,.2f}'.format(abs(financial_credits))}\n"
-            )
+            message += f"🔴 Expenses = {'${:,.2f}'.format(abs(financial_credits))}\n"
 
             # Report essential credits, if they exist.
             if essential_credits < 0:
@@ -259,9 +264,7 @@ def report(transactions: List[Transactions]) -> str:
                 message += (
                     f"\t{ESSENTIAL.emoji} {ESSENTIAL.label} ({essential_ratio}%)\n"
                 )
-                message += (
-                    f"\t{ESSENTIAL.emoji} {'${:,.2f}'.format(abs(essential_credits))}\n"
-                )
+                message += f"\t   👉 {'${:,.2f}'.format(abs(essential_credits))}\n"
 
             # Report non essential credits, if they exist.
             if non_essential_credits < 0:
@@ -269,7 +272,7 @@ def report(transactions: List[Transactions]) -> str:
                     floor((non_essential_credits / financial_credits) * 100)
                 )
                 message += f"\t{NON_ESSENTIAL.emoji} {NON_ESSENTIAL.label} ({non_essential_ratio}%)\n"
-                message += f"\t{NON_ESSENTIAL.emoji} {'${:,.2f}'.format(abs(non_essential_credits))}\n"
+                message += f"\t   👉 {'${:,.2f}'.format(abs(non_essential_credits))}\n"
 
         message += "----------- ⏳ -----------\n"
 
@@ -283,7 +286,7 @@ def report(transactions: List[Transactions]) -> str:
         components = k.split(";")
         label, date, description = components[0], components[1], components[2]
         message += f"🔥 {ix + 1}. {'${:,.2f}'.format(v)} ({date})\n"
-        emoji = ESSENTIAL.emoji if label == ESSENTIAL.label else NON_ESSENTIAL.label
+        emoji = ESSENTIAL.emoji if label == ESSENTIAL.label else NON_ESSENTIAL.emoji
         message += f"\t{emoji} {label}\n"
         message += f"\t{description}\n"
 
@@ -305,15 +308,15 @@ def help() -> str:
     message = "👻 You asked for help! Here is what you can type 🤔:\n\n\n"
 
     # Help
-    message += "*📲 ```help```*\n"
+    message += "📲 ```help```\n"
     message += "Show this help menu 🥶.\n\n"
 
     # Report
-    message += "*📲 ```report```*\n"
+    message += "📲 ```report```\n"
     message += "Type this to get a financial report of your transactions 📊.\n\n"
 
     # Essential expense
-    message += "*📲 ```ess <value> <description>```*\n"
+    message += "📲 ```ess <value> <description>```\n"
     message += "Record an Essential 🌽 expense (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```ess-usd``` 🇺🇸. "
     automatically = (
@@ -322,13 +325,13 @@ def help() -> str:
     message += automatically
 
     # Non essential expense
-    message += "*📲 ```non <value> <description>```*\n"
+    message += "📲 ```non <value> <description>```\n"
     message += "Record a Non essential 🍔 expense (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```non-usd``` 🇺🇸. "
     message += automatically
 
     # Income
-    message += "*📲 ```inc <value> <description>``*`\n"
+    message += "📲 ```inc <value> <description>```\n"
     message += "Record an Income 💸 (transaction). "
     message += f"Add ```-CURRENCY``` if the transaction's currency is not {DEFAULT_CURRENCY}, e. g.: ```inc-usd``` 🇺🇸. "
     message += automatically
