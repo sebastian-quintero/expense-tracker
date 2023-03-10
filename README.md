@@ -54,10 +54,27 @@ Use the database you just created:
 mysql> USE main;
 ```
 
-Create the `transactions` table:
+Create the tables:
 
 ```sql
-mysql> CREATE TABLE transactions (
+mysql> CREATE TABLE users (
+    id INT unsigned NOT NULL AUTO_INCREMENT,
+    created_at DATETIME NOT NULL,
+    whatsapp_phone VARCHAR(15) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+
+    PRIMARY KEY (id)
+);
+CREATE TABLE organizations (
+    id INT unsigned NOT NULL AUTO_INCREMENT,
+    created_at DATETIME NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    language VARCHAR(2) NOT NULL,
+    
+    PRIMARY KEY (id)
+);
+CREATE TABLE transactions (
     id INT unsigned NOT NULL AUTO_INCREMENT, 
     created_at DATETIME NOT NULL,
     label VARCHAR(150) NOT NULL,
@@ -65,6 +82,7 @@ mysql> CREATE TABLE transactions (
     currency VARCHAR(3) NOT NULL,
     value_converted FLOAT NOT NULL,
     description VARCHAR(150) NOT NULL,
+    
     PRIMARY KEY (id)
 );
 ```

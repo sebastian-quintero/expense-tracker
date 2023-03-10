@@ -58,6 +58,7 @@ class Users(SQLModel, table=True):
     """Represents the users table."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime
     whatsapp_phone: str
     name: str
     organization_id: Optional[int] = Field(default=None, foreign_key="organizations.id")
