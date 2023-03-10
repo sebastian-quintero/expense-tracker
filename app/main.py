@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Response, status
 from twilio.twiml.messaging_response import MessagingResponse
 
+from app.commands import COMMANDS
+from app.database import Currency, Language, Organizations
 from app.logger import configure_logs
-from app.twilio import process_request
+from app.messages import COMMAND_UNSUPPORTED_ERROR_MSG, ErrorMsg
 
 # Configure logs to appear in the terminal.
 configure_logs()
@@ -47,18 +49,49 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
             detail=f"Sender {from_param} is unauthorized",
         )
 
-    # Response properties.
-    status_code = status.HTTP_202_ACCEPTED
-    headers = {"Content-Type": "text/xml"}
-    media_type = "text/xml"
+    # Check which command was requested.
+    org = Organizations(
+        id=1,
+        created_at=None,
+        currency=Currency.cop,
+        language=Language.es,
+        admin_user_id=1,
+    )
+    message = ""
+    for command in COMMANDS.values():
+        if not command.match(body=Body):
+            continue
+
+        result = command.execute(
+            org,
+            commands=list(COMMANDS.values()),
+            body=Body,
+        )
+        if result is not None and not isinstance(result, ErrorMsg):
+            message = command.message(org, **result)
+            break
+
+        if isinstance(result, ErrorMsg):
+            message = result.to_str(org.language)
+            break
+
+        message = command.message(org)
+
+    # The command is not supported.
+    if message == "":
+        message = ErrorMsg(
+            error_str=COMMAND_UNSUPPORTED_ERROR_MSG.to_str(org.language, val_1=Body)
+        ).to_str(org.language)
 
     # Build the Twilio TwiML response.
     response = MessagingResponse()
-    message = process_request(body=Body.lower())
     response.message(message)
 
     # Return a custom FastAPI response to set headers and avoid duplicate
     # content-type key.
+    status_code = status.HTTP_202_ACCEPTED
+    headers = {"Content-Type": "text/xml"}
+    media_type = "text/xml"
     return Response(
         content=str(response),
         status_code=status_code,

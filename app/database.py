@@ -1,3 +1,4 @@
+from enum import Enum
 import logging
 import os
 from datetime import datetime
@@ -21,8 +22,27 @@ ENGINE = create_engine(
 )
 
 
+class Language(str, Enum):
+    """Language defines all the possible languages supported by the
+    application."""
+
+    # Spanish.
+    es = "ES"
+    # English.
+    en = "EN"
+
+
+class Currency(str, Enum):
+    """Currency defines all the possible currencies supported by the
+    application."""
+
+    cop = "COP"
+    usd = "USD"
+    eur = "EUR"
+
+
 class Transactions(SQLModel, table=True):
-    """Represents the expenses table."""
+    """Represents the transactions table."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime
@@ -31,6 +51,27 @@ class Transactions(SQLModel, table=True):
     currency: str
     value_converted: float
     description: str
+    user_id: Optional[int] = Field(default=None, foreign_key="users.id")
+
+
+class Users(SQLModel, table=True):
+    """Represents the users table."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    whatsapp_phone: str
+    name: str
+    organization_id: Optional[int] = Field(default=None, foreign_key="organizations.id")
+
+
+class Organizations(SQLModel, table=True):
+    """Represents the organizations table."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime
+    name: str
+    currency: Currency
+    language: Language
+    admin_user_id: Optional[int] = Field(default=None, foreign_key="users.id")
 
 
 def record_transaction(
