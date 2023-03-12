@@ -57,34 +57,42 @@ mysql> USE main;
 Create the tables:
 
 ```sql
-mysql> CREATE TABLE users (
-    id INT unsigned NOT NULL AUTO_INCREMENT,
-    created_at DATETIME NOT NULL,
-    whatsapp_phone VARCHAR(15) NOT NULL,
-    name VARCHAR(150) NOT NULL,
-
-    PRIMARY KEY (id)
-);
-CREATE TABLE organizations (
+mysql> CREATE TABLE organization (
     id INT unsigned NOT NULL AUTO_INCREMENT,
     created_at DATETIME NOT NULL,
     name VARCHAR(150) NOT NULL,
     currency VARCHAR(3) NOT NULL,
-    language VARCHAR(2) NOT NULL,
-    
+    language VARCHAR(2) NOT NULL,    
     PRIMARY KEY (id)
-);
-CREATE TABLE transactions (
+) ENGINE=INNODB;
+
+mysql> CREATE TABLE user (
+    id INT unsigned NOT NULL AUTO_INCREMENT,
+    organization_id INT unsigned NOT NULL,
+    created_at DATETIME NOT NULL,
+    whatsapp_phone VARCHAR(15) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    is_admin BOOLEAN NOT NULL,
+    PRIMARY KEY (id),
+    INDEX org_id (organization_id),
+    FOREIGN KEY (organization_id)
+        REFERENCES organization(id)
+) ENGINE=INNODB;
+
+mysql> CREATE TABLE transaction (
     id INT unsigned NOT NULL AUTO_INCREMENT, 
+    user_id INT unsigned NOT NULL,
     created_at DATETIME NOT NULL,
     label VARCHAR(150) NOT NULL,
     value FLOAT NOT NULL,
     currency VARCHAR(3) NOT NULL,
     value_converted FLOAT NOT NULL,
     description VARCHAR(150) NOT NULL,
-    
-    PRIMARY KEY (id)
-);
+    PRIMARY KEY (id),
+    INDEX us_id (user_id),
+    FOREIGN KEY (user_id)
+        REFERENCES user(id)
+) ENGINE=INNODB;
 ```
 
 ## Run locally

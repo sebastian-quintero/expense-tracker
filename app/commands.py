@@ -13,7 +13,13 @@ import pytz
 from dotenv import load_dotenv
 from requests import get
 
-from app.database import Organizations, record_transaction, retrieve_transactions
+from app.database import (
+    Language,
+    Organization,
+    User,
+    record_transaction,
+    retrieve_transactions,
+)
 from app.messages import (
     HELP_INTRO_MSG,
     LENGTH_ERROR_MSG,
@@ -26,7 +32,6 @@ from app.messages import (
     TRANSACTION_MSG,
     VALUE_ERROR_MSG,
     ErrorMsg,
-    Language,
 )
 
 # Load environment variables from a .env file.
@@ -50,20 +55,24 @@ class Command:
         user_input = body.lower().split(" ")[0]
         return bool(re.compile(self.regexp).match(user_input))
 
-    def execute(self, org: Organizations, **kwargs) -> Dict[str, Any] | ErrorMsg | None:
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
         """Execute the command. Any logic that the command implements should be
         hosted here. Depending on the logic the command executes, this function
         may return information needed for displaying the final user message.
         Should be implemented by children classes."""
         return
 
-    def message(self, org: Organizations, **kwargs) -> str:
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
         """Final message that is displayed to the user. Varies based on the
         language provided. A single string is returned, containing the complete
         text for the user. Should be implemented by children classes."""
         return
 
-    def help_message(self, org: Organizations) -> str | None:
+    def help_message(self, organization: Organization) -> str | None:
         """Help text of the command. Varies based on the language provided.
         Should be implemented by children classes."""
         return
@@ -75,29 +84,39 @@ class Help(Command):
 
     regexp: str = "help"
 
-    def execute(self, org: Organizations, **kwargs) -> Dict[str, Any] | ErrorMsg | None:
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
         # This command does not execute any logic, only passes the commands
         # through.
         return {"commands": kwargs.get("commands")}
 
-    def message(self, org: Organizations, **kwargs) -> str:
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
         commands: List[Command] = kwargs.get("commands")
 
         # Intro of the text.
-        message = HELP_INTRO_MSG.to_str(org.language)
+        message = HELP_INTRO_MSG.to_str(
+            organization.language,
+            val_1=user.name,
+            val_2=organization.name,
+            val_3=organization.language,
+            val_4=organization.currency,
+        )
 
         # Append the help of all commands.
         for command in commands:
             # Skip commands that do not have a help message.
-            if command.help_message(org) is None:
+            if command.help_message(organization) is None:
                 continue
 
-            message += command.help_message(org)
+            message += command.help_message(organization)
             message += "\n\n"
 
         return message
 
-    def help_message(self, org: Organizations) -> str | None:
+    def help_message(self, organization: Organization) -> str | None:
         # This command is the help of the application, there is no help for the
         # help.
         return None
@@ -109,7 +128,11 @@ class Report(Command):
 
     regexp: str = "report"
 
-    def execute(self, org: Organizations, **kwargs) -> Dict[str, Any] | ErrorMsg | None:
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
         # Tally transactions by creating monthly totals and differentiating
         # between credits and debits. Returns all the transactions in the
         # current month.
@@ -121,7 +144,7 @@ class Report(Command):
         current = {}
         for transaction in transactions:
             # Tally by month.
-            month_key = f"{transaction.created_at.month}. {MONTHS[org.language][transaction.created_at.month]}"
+            month_key = f"{transaction.created_at.month}. {MONTHS[organization.language][transaction.created_at.month]}"
             totals[month_key][transaction.label] += transaction.value_converted
 
             # Gather the current month's expenses to later get the highest.
@@ -138,7 +161,7 @@ class Report(Command):
 
         return {"totals": totals, "current": current}
 
-    def message(self, org: Organizations, **kwargs) -> str:
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
         totals, current = kwargs.get("totals"), kwargs.get("current")
 
         # Describe monthly totals.
@@ -155,9 +178,7 @@ class Report(Command):
 
             # Check if there are debits.
             if debits > 0:
-                symbols = (
-                    f"🟢 {COMMANDS['inc'].emoji} {COMMANDS['inc'].label(org.language)}"
-                )
+                symbols = f"🟢 {COMMANDS['inc'].emoji} {COMMANDS['inc'].label(organization.language)}"
                 monthly_totals_msg += f"{symbols} = {'${:,.2f}'.format(debits)}\n"
 
                 # Only report savings when there are credits.
@@ -165,7 +186,9 @@ class Report(Command):
                     savings = debits + financial_credits
                     savings_ratio = floor((savings / debits) * 100)
                     savings_text = (
-                        "\t🥂 Savings" if org.language == Language.en else "\t🥂 Ahorros"
+                        "\t🥂 Savings"
+                        if organization.language == Language.en
+                        else "\t🥂 Ahorros"
                     )
                     monthly_totals_msg += (
                         f"{savings_text} ({savings_ratio}%)\n"
@@ -175,7 +198,7 @@ class Report(Command):
             # Check if there are credits.
             if financial_credits < 0:
                 expenses_text = (
-                    "🔴 Expenses" if org.language == Language.en else "🔴 Gastos"
+                    "🔴 Expenses" if organization.language == Language.en else "🔴 Gastos"
                 )
                 monthly_totals_msg += (
                     f"{expenses_text} = {'${:,.2f}'.format(abs(financial_credits))}\n"
@@ -186,7 +209,7 @@ class Report(Command):
                     essential_ratio = abs(
                         floor((essential_credits / financial_credits) * 100)
                     )
-                    symbols = f"\t{COMMANDS['ess'].emoji} {COMMANDS['ess'].label(org.language)}"
+                    symbols = f"\t{COMMANDS['ess'].emoji} {COMMANDS['ess'].label(organization.language)}"
                     monthly_totals_msg += f"{symbols} ({essential_ratio}%)\n"
                     monthly_totals_msg += (
                         f"\t   👉 {'${:,.2f}'.format(abs(essential_credits))}\n"
@@ -197,7 +220,7 @@ class Report(Command):
                     non_essential_ratio = abs(
                         floor((non_essential_credits / financial_credits) * 100)
                     )
-                    symbols = f"\t{COMMANDS['non'].emoji} {COMMANDS['non'].label(org.language)}"
+                    symbols = f"\t{COMMANDS['non'].emoji} {COMMANDS['non'].label(organization.language)}"
                     monthly_totals_msg += f"{symbols} ({non_essential_ratio}%)\n"
                     monthly_totals_msg += (
                         f"\t   👉 {'${:,.2f}'.format(abs(non_essential_credits))}\n"
@@ -219,22 +242,24 @@ class Report(Command):
                 else COMMANDS["non"].emoji
             )
             translated_label = (
-                COMMANDS["ess"].label(org.language)
+                COMMANDS["ess"].label(organization.language)
                 if label == COMMANDS["ess"].database_label
-                else COMMANDS["non"].label(org.language)
+                else COMMANDS["non"].label(organization.language)
             )
             top_expenses_message += f"\t{emoji} {translated_label}\n"
             top_expenses_message += f"\t{description}\n"
 
         return REPORT_MSG.to_str(
-            org.language,
-            val_1=org.currency.value,
-            val_2=monthly_totals_msg,
-            val_3=top_expenses_message,
+            organization.language,
+            val_1=user.name,
+            val_2=organization.name,
+            val_3=organization.currency,
+            val_4=monthly_totals_msg,
+            val_5=top_expenses_message,
         )
 
-    def help_message(self, org: Organizations) -> str | None:
-        return REPORT_HELP_MSG.to_str(org.language)
+    def help_message(self, organization: Organization) -> str | None:
+        return REPORT_HELP_MSG.to_str(organization.language)
 
 
 class TransactionSense(IntEnum):
@@ -270,15 +295,22 @@ class Transaction(Command):
             )
         )
 
-    def execute(self, org: Organizations, **kwargs) -> Dict[str, Any] | ErrorMsg | None:
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
         # Record a new transaction in the database, based on the currency and
         # type: a debit or a credit.
         body = kwargs.get("body")
+        user: User = kwargs.get("user")
         request = body.lower().split(" ")
 
         # Checks that there are at least 2 spaces defining the request.
         if len(request) < 3:
-            return ErrorMsg(error_str=LENGTH_ERROR_MSG.to_str(org.language, val_1=body))
+            return ErrorMsg(
+                error_str=LENGTH_ERROR_MSG.to_str(organization.language, val_1=body)
+            )
 
         # Checks that the request has the correct ordering.
         value = 0
@@ -286,26 +318,28 @@ class Transaction(Command):
             value = float(request[1])
         except ValueError:
             return ErrorMsg(
-                error_str=VALUE_ERROR_MSG.to_str(org.language, val_1=request[1])
+                error_str=VALUE_ERROR_MSG.to_str(
+                    organization.language, val_1=request[1]
+                )
             )
 
         if value <= 0:
-            return ErrorMsg(error_str=NEGATIVE_ERROR_MSG.to_str(org.language))
+            return ErrorMsg(error_str=NEGATIVE_ERROR_MSG.to_str(organization.language))
 
         # Gets request elements.
         full_command = request[0].split("-")
-        currency = org.currency.value
+        currency = organization.currency
         if len(full_command) > 1:
             currency = full_command[1].upper()
         description = " ".join(request[2:])
 
         # Converts the value in case a foreign currency is used.
         value_converted = deepcopy(value)
-        if currency != org.currency.value:
+        if currency != organization.currency:
             value_converted = self.convert(
                 value=value,
                 base_currency=currency,
-                target_currency=org.currency.value,
+                target_currency=organization.currency,
             )
 
         # Record the transaction in the database.
@@ -318,6 +352,7 @@ class Transaction(Command):
             value=val,
             currency=currency,
             value_converted=val_conv,
+            user=user,
         )
 
         return {
@@ -327,7 +362,7 @@ class Transaction(Command):
             "description": description,
         }
 
-    def message(self, org: Organizations, **kwargs) -> str:
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
         currency, value, value_converted, description = (
             kwargs.get("currency"),
             kwargs.get("value"),
@@ -335,32 +370,33 @@ class Transaction(Command):
             kwargs.get("description"),
         )
 
-        message = TRANSACTION_MSG.to_str(
-            org.language,
-            val_1=self.emoji,
-            val_2=self.label(org.language),
-            val_3=currency,
-            val_4="${:,.2f}".format(abs(value)),
-            val_5=description,
-        )
-
+        converted_message = ""
         if value != value_converted:
-            message += TRANSACTION_CURRENCY_MSG.to_str(
-                org.language,
-                val_1=org.currency.value,
+            converted_message = TRANSACTION_CURRENCY_MSG.to_str(
+                organization.language,
+                val_1=organization.currency,
                 val_2="${:,.2f}".format(abs(value_converted)),
             )
 
-        return message
+        return TRANSACTION_MSG.to_str(
+            organization.language,
+            val_1=self.emoji,
+            val_2=self.label(organization.language),
+            val_3=currency,
+            val_4="${:,.2f}".format(abs(value)),
+            val_5=description,
+            val_6=converted_message,
+            val_7=user.name,
+        )
 
-    def help_message(self, org: Organizations) -> str | None:
+    def help_message(self, organization: Organization) -> str | None:
         return TRANSACTION_HELP_MSG.to_str(
-            org.language,
+            organization.language,
             val_1=self.user_label,
-            val_2=self.label(org.language),
+            val_2=self.label(organization.language),
             val_3=self.emoji,
-            val_4=org.currency.value,
-            val_5=org.currency.value,
+            val_4=organization.currency,
+            val_5=organization.currency,
             val_6=self.user_label,
             val_7=self.user_label,
         )

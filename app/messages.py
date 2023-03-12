@@ -61,15 +61,33 @@ class Message:
 
 
 class HelpIntroMsg(Message):
-    base_text: str = "👻 {text_1} 🤔:\n\n📲 ```help```\n{text_2} 🥶.\n\n"
+    base_text: str = (
+        "👋 {text_1} {val_1}!\n"
+        "{text_2} {val_2} 🧙‍♀️:\n"
+        "\t 🇬🇧🇪🇸 {text_3}: {val_3}"
+        "\t 🌎 {text_4}: {val_4}"
+        "\n\n"
+        "👻 {text_5} 🤔:\n\n"
+        "📲 ```help```\n"
+        "{text_6} 🥶."
+        "\n\n"
+    )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
-            "text_1": "You asked for help! Here is what you can type",
-            "text_2": "Show this help menu",
+            "text_1": "Hello",
+            "text_2": "This is the info of",
+            "text_3": "Language",
+            "text_4": "Currency",
+            "text_5": "You asked for help! Here is what you can type",
+            "text_6": "Show this help menu",
         },
         Language.es: {
-            "text_1": "¡Pediste ayuda! Esto es lo que puedes escribir",
-            "text_2": "Muestra este menú de ayuda",
+            "text_1": "¡Hola",
+            "text_2": "Ésta es la información de",
+            "text_3": "Idioma",
+            "text_4": "Moneda",
+            "text_5": "¡Pediste ayuda! Esto es lo que puedes escribir",
+            "text_6": "Muestra este menú de ayuda",
         },
     }
 
@@ -80,6 +98,9 @@ class TransactionMsg(Message):
         "\t❓ {text_2}: {val_1} {val_2}\n"
         "\t🤑 {text_3}: {val_3} {val_4}\n"
         "\t🔍 {text_4}: {val_5}\n"
+        "{val_6}"
+        "\n"
+        "👋 {text_5} {val_7}!"
     )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
@@ -87,12 +108,14 @@ class TransactionMsg(Message):
             "text_2": "Type",
             "text_3": "Value",
             "text_4": "Description",
+            "text_5": "Have a nice day",
         },
         Language.es: {
             "text_1": "¡Transacción registrada exitosamente!",
             "text_2": "Tipo",
             "text_3": "Valor",
             "text_4": "Descripción",
+            "text_5": "¡Que tengas un lindo día",
         },
     }
 
@@ -145,24 +168,29 @@ class TransactionHelpMsg(Message):
 
 class ReportMsg(Message):
     base_text: str = (
-        "*🤓 {text_1} {val_1} 💵📊.*\n\n\n"
-        "*_{text_2} 📅💯:_*\n"
-        "{val_2}\n\n"
-        "*_🙀 {text_3} 🔝 {text_4} 🚨:_*\n"
-        "{val_3}"
+        "{text_1} {val_1}!\n"
+        "*🤓 {text_2} {val_2} {text_3} {val_3} 💵📊.*\n\n\n"
+        "*_{text_4} 📅💯:_*\n"
+        "{val_4}\n\n"
+        "*_🙀 {text_5} 🔝 {text_6} 🚨:_*\n"
+        "{val_5}"
     )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
-            "text_1": "This is your financial report in",
-            "text_2": "Monthly totals",
-            "text_3": "These are the top",
-            "text_4": "expenses this month",
+            "text_1": "Hello",
+            "text_2": "This is the financial report of",
+            "text_3": "in the currency",
+            "text_4": "Monthly totals",
+            "text_5": "These are the top",
+            "text_6": "expenses this month",
         },
         Language.es: {
-            "text_1": "Éste es tu reporte financiero en",
-            "text_2": "Totales mensuales",
-            "text_3": "Éstos son el top",
-            "text_4": "de gastos este mes",
+            "text_1": "¡Hola",
+            "text_2": "Éste es el reporte financiero de",
+            "text_3": "en la moneda",
+            "text_4": "Totales mensuales",
+            "text_5": "Éstos son el top",
+            "text_6": "de gastos este mes",
         },
     }
 
@@ -262,6 +290,24 @@ class CommandUnsupportedErrorMsg(Message):
         },
     }
 
+
+USER_ORG_ERROR_MSG: str = (
+    "🇬🇧\n"
+    "🚫 Your WhatsApp phone number 📞 {phone} is not part of an authorized organization.\n"
+    "🙏🏻 Please ask an an admin to add you."
+    "\n\n"
+    "🇪🇸\n"
+    "🚫 Tu número de teléfono de WhatsApp 📞 {phone} no es parte de una organización autorizada.\n"
+    "🙏🏻 Por favor pide a un administrador que te agregue."
+)
+
+UNEXPECTED_ERROR_MSG: str = (
+    "🇬🇧\n"
+    "🚫 Unexpected error. 🙏🏻 Please contact the app owner."
+    "\n\n"
+    "🇪🇸\n"
+    "🚫 Error inesperado. 🙏🏻 Favor contactar al dueño de la app."
+)
 
 # The classes are instantiated once because they hold static information.
 HELP_INTRO_MSG = HelpIntroMsg()
