@@ -293,11 +293,13 @@ class CommandUnsupportedErrorMsg(Message):
 
 USER_ORG_ERROR_MSG: str = (
     "🇬🇧\n"
-    "🚫 Your WhatsApp phone number 📞 {phone} is not part of an authorized organization.\n"
+    "🚫 Your WhatsApp phone number 📞 {phone} is not part of an authorized organization "
+    "and cannot execute this command.\n"
     "🙏🏻 Please ask an an admin to add you."
     "\n\n"
     "🇪🇸\n"
-    "🚫 Tu número de teléfono de WhatsApp 📞 {phone} no es parte de una organización autorizada.\n"
+    "🚫 Tu número de teléfono de WhatsApp 📞 {phone} no es parte de una organización autorizada "
+    "y no puede ejecutar este comando.\n"
     "🙏🏻 Por favor pide a un administrador que te agregue."
 )
 
@@ -308,6 +310,109 @@ UNEXPECTED_ERROR_MSG: str = (
     "🇪🇸\n"
     "🚫 Error inesperado. 🙏🏻 Favor contactar al dueño de la app."
 )
+
+CONF_LENGTH_ERROR_MSG: str = (
+    "🇬🇧\n"
+    '🚫 Command "{val_1}" should have at least 3 spaces to configure an organization.'
+    "\n\n"
+    "🇪🇸\n"
+    '🚫 El comando "{val_1}" debe tener al menos 3 espacios para configurar una organización.'
+)
+
+CONF_LANGUAGE_ERROR_MSG: str = (
+    "🇬🇧\n"
+    '🚫 The second element of the command: "{val_1}"; should be one of the following supported languages: {val_2}. '
+    "You may use upper or lower case."
+    "\n\n"
+    "🇪🇸\n"
+    '🚫 El segundo elemento del comando: "{val_1}"; debe ser alguno de los siguientes idiomas soportados: {val_2}. '
+    "Puedes usar mayúsculas o minúsculas."
+)
+
+CONF_CURRENCY_ERROR_MSG: str = (
+    "🇬🇧\n"
+    '🚫 The third element of the command: "{val_1}"; should be one of the following supported currencies: {val_2}. '
+    "You may use upper or lower case."
+    "\n\n"
+    "🇪🇸\n"
+    '🚫 El tercer elemento del comando: "{val_1}"; debe ser alguna de las siguientes monedas soportadas: {val_2}. '
+    "Puedes usar mayúsculas o minúsculas."
+)
+
+
+class NewOrganizationMessage(Message):
+    base_text: str = (
+        "✅ {text_1} 🎉\n"
+        "\t📝 {text_2}: {val_1}\n"
+        "\t🇬🇧🇪🇸 {text_3}: {val_2}\n"
+        "\t🌎 {text_4}: {val_3}\n"
+        "\t📞 {text_5}: {val_4}\n\n"
+        "{text_6}\n"
+        "\t📲 ```name <{text_7}>```: {text_8}.\n"
+        "\t📲 ```add <{text_9}>```: {text_10}.\n"
+    )
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Successfully created a new organization!",
+            "text_2": "Name",
+            "text_3": "Language",
+            "text_4": "Currency",
+            "text_5": "Admin Phone Number",
+            "text_6": "As a next step, you can use the following commands:",
+            "text_7": "Your Name",
+            "text_8": "set you user's name in the app",
+            "text_9": "Phone Number",
+            "text_10": "invite another user to your organization",
+        },
+        Language.es: {
+            "text_1": "¡Se creó exitosamente una nueva organización!",
+            "text_2": "Nombre",
+            "text_3": "Idioma",
+            "text_4": "Moneda",
+            "text_5": "Teléfono del administrador",
+            "text_6": "Como siguiente paso, puedes utilizar los siguientes comandos:",
+            "text_7": "Tu Nombre",
+            "text_8": "configura el nombre de tu usuario en la app",
+            "text_9": "Número telefónico",
+            "text_10": "invita a otro usuario a tu organización",
+        },
+    }
+
+
+class UpdateOrganizationMessage(Message):
+    base_text: str = (
+        "✅ {text_1} 🎉\n"
+        "\t📝 {text_2}: {val_1}\n"
+        "\t🇬🇧🇪🇸 {text_3}: {val_2}\n"
+        "\t🌎 {text_4}: {val_3}"
+    )
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Successfully updated your organization!",
+            "text_2": "Name",
+            "text_3": "Language",
+            "text_4": "Currency",
+        },
+        Language.es: {
+            "text_1": "¡Se actualizó exitosamente tu organización!",
+            "text_2": "Nombre",
+            "text_3": "Idioma",
+            "text_4": "Moneda",
+        },
+    }
+
+
+class UserNotAdminErrorMsg(Message):
+    base_text: str = '{text_1}: "{val_1}"'
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "You are not the admin of the organization and cannot execute the command",
+        },
+        Language.es: {
+            "text_1": "No eres el administrador de la organización y por lo tanto no puedes ejecutar el comando",
+        },
+    }
+
 
 # The classes are instantiated once because they hold static information.
 HELP_INTRO_MSG = HelpIntroMsg()
@@ -320,3 +425,6 @@ VALUE_ERROR_MSG = ValueErrorMsg()
 LENGTH_ERROR_MSG = LengthErrorMsg()
 NEGATIVE_ERROR_MSG = NegativeErrorMsg()
 COMMAND_UNSUPPORTED_ERROR_MSG = CommandUnsupportedErrorMsg()
+NEW_ORGANIZATION_MSG = NewOrganizationMessage()
+UPDATE_ORGANIZATION_MSG = UpdateOrganizationMessage()
+USER_NOT_ADMIN_ERROR_MSG = UserNotAdminErrorMsg()

@@ -7,29 +7,41 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from math import floor
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pytz
 from dotenv import load_dotenv
 from requests import get
 
 from app.database import (
+    Currency,
     Language,
     Organization,
     User,
+    record_organization,
     record_transaction,
+    record_user,
     retrieve_transactions,
+    retrieve_user,
+    retrieve_user_organization,
+    update_organization,
 )
 from app.messages import (
+    CONF_CURRENCY_ERROR_MSG,
+    CONF_LANGUAGE_ERROR_MSG,
+    CONF_LENGTH_ERROR_MSG,
     HELP_INTRO_MSG,
     LENGTH_ERROR_MSG,
     MONTHS,
     NEGATIVE_ERROR_MSG,
+    NEW_ORGANIZATION_MSG,
     REPORT_HELP_MSG,
     REPORT_MSG,
     TRANSACTION_CURRENCY_MSG,
     TRANSACTION_HELP_MSG,
     TRANSACTION_MSG,
+    UPDATE_ORGANIZATION_MSG,
+    USER_NOT_ADMIN_ERROR_MSG,
     VALUE_ERROR_MSG,
     ErrorMsg,
 )
@@ -54,6 +66,24 @@ class Command:
 
         user_input = body.lower().split(" ")[0]
         return bool(re.compile(self.regexp).match(user_input))
+
+    def is_authorized(self, whatsapp_phone: str) -> Tuple[bool, User, Organization]:
+        """Determines if the given whatsapp phone number can execute the
+        command. Returns true and valid classes if the phone number is
+        authorized. If it is not authorized, the boolean flag is False and at
+        least one of the classes is None."""
+
+        # Get the user and org.
+        user, organization = retrieve_user_organization(whatsapp_phone=whatsapp_phone)
+
+        # Validates the sender is authorized.
+        flag = False if user is None or organization is None else True
+        if not flag:
+            logging.error(
+                f"Phone number {whatsapp_phone} is not authorized to execute command {self.regexp}"
+            )
+
+        return flag, user, organization
 
     def execute(
         self,
@@ -310,7 +340,7 @@ class Transaction(Command):
         if len(request) < 3:
             return ErrorMsg(
                 error_str=LENGTH_ERROR_MSG.to_str(organization.language, val_1=body)
-            )
+            ).to_str(organization.language)
 
         # Checks that the request has the correct ordering.
         value = 0
@@ -321,10 +351,12 @@ class Transaction(Command):
                 error_str=VALUE_ERROR_MSG.to_str(
                     organization.language, val_1=request[1]
                 )
-            )
+            ).to_str(organization.language)
 
         if value <= 0:
-            return ErrorMsg(error_str=NEGATIVE_ERROR_MSG.to_str(organization.language))
+            return ErrorMsg(
+                error_str=NEGATIVE_ERROR_MSG.to_str(organization.language),
+            ).to_str(organization.language)
 
         # Gets request elements.
         full_command = request[0].split("-")
@@ -472,6 +504,114 @@ class Income(Transaction):
         return self.database_label if language == Language.en else "Ingreso"
 
 
+@dataclass
+class OrganizationCommand(Command):
+    """Configure a new organization"""
+
+    regexp: str = "org"
+
+    def is_authorized(self, whatsapp_phone: str) -> Tuple[bool, User, Organization]:
+        # Overrides the general method because configuring an organization is
+        # always an authorized command.
+        return True, None, None
+
+    def execute(
+        self, organization: Organization, **kwargs
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        body = kwargs.get("body")
+        request = body.split(" ")
+        whatsapp_phone = kwargs.get("whatsapp_phone")
+
+        # Checks that there are at least 3 spaces defining the request.
+        if len(request) < 4:
+            return CONF_LENGTH_ERROR_MSG.format(val_1=body)
+
+        # Checks that the second element of the request is the language:
+        languages = set(item.value for item in Language)
+        language = str(request[1]).upper()
+        if language not in languages:
+            return CONF_LANGUAGE_ERROR_MSG.format(val_1=request[1], val_2=languages)
+
+        # Checks that the third element of the request is the currency:
+        currencies = set(item.value for item in Currency)
+        currency = str(request[2]).upper()
+        if currency not in currencies:
+            return CONF_CURRENCY_ERROR_MSG.format(val_1=request[2], val_2=currencies)
+
+        name = " ".join(request[3:])
+
+        # Record information in the database as long as the owner is already
+        # registered. If the owner is already registered, information is just
+        # updated.
+        user = retrieve_user(whatsapp_phone)
+        update = False
+        if user is None:
+            # Record new information in the database.
+            organization_id = record_organization(
+                created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+                name=name,
+                language=language,
+                currency=currency,
+            )
+            record_user(
+                organization_id=organization_id,
+                created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+                whatsapp_phone=whatsapp_phone,
+                name="",
+                is_admin=True,
+            )
+
+        else:
+            if user.is_admin:
+                user, organization = retrieve_user_organization(whatsapp_phone)
+                update_organization(
+                    organization=organization,
+                    name=name,
+                    language=language,
+                    currency=currency,
+                )
+                update = True
+
+            else:
+                return ErrorMsg(
+                    error_str=USER_NOT_ADMIN_ERROR_MSG.to_str(language, val_1=body),
+                ).to_str(language)
+
+        return {
+            "name": name,
+            "language": language,
+            "currency": currency,
+            "whatsapp_phone": whatsapp_phone,
+            "update": update,
+        }
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        name = kwargs.get("name")
+        language = kwargs.get("language")
+        currency = kwargs.get("currency")
+        whatsapp_phone = kwargs.get("whatsapp_phone")
+        update = bool(kwargs.get("update"))
+
+        if update:
+            return UPDATE_ORGANIZATION_MSG.to_str(
+                language,
+                val_1=name,
+                val_2=language,
+                val_3=currency,
+            )
+
+        return NEW_ORGANIZATION_MSG.to_str(
+            language,
+            val_1=name,
+            val_2=language,
+            val_3=currency,
+            val_4=whatsapp_phone,
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        return super().help_message(organization)
+
+
 # Instantiate the supported commands once because they contain static
 # information that does not need updating.
 COMMANDS: Dict[str, Command | Transaction] = {
@@ -480,4 +620,5 @@ COMMANDS: Dict[str, Command | Transaction] = {
     "ess": Essential(),
     "non": NonEssential(),
     "inc": Income(),
+    "org": OrganizationCommand(),
 }

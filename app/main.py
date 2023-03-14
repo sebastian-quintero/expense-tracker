@@ -1,10 +1,7 @@
-import logging
-
 from fastapi import FastAPI, Form, Response, status
 from twilio.twiml.messaging_response import MessagingResponse
 
 from app.commands import COMMANDS
-from app.database import retrieve_user_organization
 from app.logger import configure_logs
 from app.messages import (
     COMMAND_UNSUPPORTED_ERROR_MSG,
@@ -47,25 +44,6 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
     response = MessagingResponse()
     response.message(UNEXPECTED_ERROR_MSG)
 
-    # Replaces whitespace with a plus sign and gets the phone number from the
-    # str.
-    whatsapp_phone = From.replace(" ", "+").split(":")[1]
-
-    # Get the user's org.
-    user, organization = retrieve_user_organization(whatsapp_phone=whatsapp_phone)
-
-    # Validates the sender is authorized.
-    if user is None or organization is None:
-        logging.error(f"Phone number {whatsapp_phone} is not part of an authorized org")
-        response = MessagingResponse()
-        response.message(USER_ORG_ERROR_MSG.format(phone=whatsapp_phone))
-        return Response(
-            content=str(response),
-            status_code=status_code,
-            headers=headers,
-            media_type=media_type,
-        )
-
     message = ""
     for command in COMMANDS.values():
         # Check if the command should be executed based on its regular
@@ -73,25 +51,38 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
         if not command.match(body=Body):
             continue
 
+        # Check if the user is authorized to execute the command. Replaces
+        # whitespace with a plus sign and gets the phone number from the str.
+        whatsapp_phone = From.replace(" ", "+").split(":")[1]
+        is_authorized, user, organization = command.is_authorized(whatsapp_phone)
+        if not is_authorized:
+            message = USER_ORG_ERROR_MSG.format(phone=whatsapp_phone)
+            break
+
         # Execute the logic associated to the command.
         result = command.execute(
             organization,
             commands=list(COMMANDS.values()),
             body=Body,
             user=user,
+            whatsapp_phone=whatsapp_phone,
         )
 
-        # Check the type of message that should be returned by having executed
-        # the command. For example, it may result in an error.
-        if result is not None and not isinstance(result, ErrorMsg):
+        # The command was executed successfully and there are results that
+        # should be passed to the message command.
+        if isinstance(result, dict):
             message = command.message(organization, user, **result)
             break
 
-        if isinstance(result, ErrorMsg):
-            message = result.to_str(organization.language)
+        # The command returned an error in the form of a string.
+        if isinstance(result, str):
+            message = result
             break
 
+        # The command was executed successfully and there are no results that
+        # should be passed to the message command.
         message = command.message(organization, user)
+        break
 
     # The command is not supported.
     if message == "":

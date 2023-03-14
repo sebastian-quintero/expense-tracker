@@ -84,7 +84,7 @@ def record_transaction(
     value_converted: float,
     user: User,
 ):
-    """Record a transaction to the transactions table."""
+    """Record a transaction to the transaction table."""
 
     transaction = Transaction(
         created_at=created_at,
@@ -145,3 +145,92 @@ def retrieve_user_organization(whatsapp_phone: str) -> Tuple[User, Organization]
             user, organization = None, None
 
     return user, organization
+
+
+def retrieve_user(whatsapp_phone: str) -> User | None:
+    """Retrieves the user based on the provided filter."""
+
+    with Session(ENGINE) as session:
+        statement = select(User).where(User.whatsapp_phone == whatsapp_phone)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        users = [result for result in results]
+        try:
+            user = users[0]
+            logging.info(f"successfully retrieved user: {user}")
+        except IndexError:
+            logging.error(f"no user found for whatsapp phone {whatsapp_phone}")
+            user = None
+
+    return user
+
+
+def record_organization(
+    created_at: datetime,
+    name: str,
+    language: Language,
+    currency: Currency,
+) -> int:
+    """Record an organization to the organization table. Returns the id after
+    successfully recording the organization."""
+
+    organization = Organization(
+        created_at=created_at,
+        name=name,
+        currency=currency,
+        language=language,
+    )
+    logging.info(f"creating new organization record: {organization}")
+
+    # Stores the record in the database.
+    with Session(ENGINE) as session:
+        session.add(organization)
+        session.commit()
+        session.refresh(organization)
+        organization_id = organization.id
+
+    logging.info("successfully recorded organization")
+
+    return organization_id
+
+
+def record_user(
+    organization_id: int,
+    created_at: datetime,
+    whatsapp_phone: str,
+    name: str,
+    is_admin: bool,
+):
+    """Record a new user to the user table."""
+
+    user = User(
+        organization_id=organization_id,
+        created_at=created_at,
+        whatsapp_phone=whatsapp_phone,
+        name=name,
+        is_admin=is_admin,
+    )
+    logging.info(f"creating new user record: {user}")
+
+    # Stores the record in the database.
+    with Session(ENGINE) as session:
+        session.add(user)
+        session.commit()
+
+    logging.info("successfully recorded user")
+
+
+def update_organization(
+    organization: Organization,
+    name: str,
+    language: Language,
+    currency: Currency,
+):
+    """Update the information of an organization in the database."""
+
+    with Session(ENGINE) as session:
+        organization.name = name
+        organization.language = language
+        organization.currency = currency
+        session.add(organization)
+        session.commit()
