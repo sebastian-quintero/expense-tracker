@@ -21,18 +21,26 @@ from app.database import (
     record_organization,
     record_transaction,
     record_user,
+    retrieve_organization,
     retrieve_transactions,
     retrieve_user,
     retrieve_user_organization,
-    update_organization,
+    update_user,
 )
 from app.messages import (
+    ADD_HELP_MSG,
+    ADD_LENGTH_ERROR_MSG,
+    ADDED_USER_EXISTS_ERROR_MSG,
+    ADDED_USER_MSG,
     CONF_CURRENCY_ERROR_MSG,
     CONF_LANGUAGE_ERROR_MSG,
     CONF_LENGTH_ERROR_MSG,
     HELP_INTRO_MSG,
+    INVALID_PHONE_ERROR_MSG,
     LENGTH_ERROR_MSG,
     MONTHS,
+    NAME_HELP_MSG,
+    NAME_LENGTH_ERROR_MSG,
     NEGATIVE_ERROR_MSG,
     NEW_ORGANIZATION_MSG,
     REPORT_HELP_MSG,
@@ -40,7 +48,8 @@ from app.messages import (
     TRANSACTION_CURRENCY_MSG,
     TRANSACTION_HELP_MSG,
     TRANSACTION_MSG,
-    UPDATE_ORGANIZATION_MSG,
+    UPDATED_USER_MSG,
+    USER_EXISTS_ERROR_MSG,
     USER_NOT_ADMIN_ERROR_MSG,
     VALUE_ERROR_MSG,
     ErrorMsg,
@@ -112,7 +121,7 @@ class Command:
 class Help(Command):
     """Display the help menu of the application."""
 
-    regexp: str = "help"
+    regexp: str = "^(help|ayuda)$"
 
     def execute(
         self,
@@ -156,7 +165,7 @@ class Help(Command):
 class Report(Command):
     """Get the financial report."""
 
-    regexp: str = "report"
+    regexp: str = "^(report|reporte)$"
 
     def execute(
         self,
@@ -516,11 +525,23 @@ class OrganizationCommand(Command):
         return True, None, None
 
     def execute(
-        self, organization: Organization, **kwargs
+        self,
+        organization: Organization,
+        **kwargs,
     ) -> Dict[str, Any] | ErrorMsg | None:
         body = kwargs.get("body")
         request = body.split(" ")
         whatsapp_phone = kwargs.get("whatsapp_phone")
+
+        user = retrieve_user(whatsapp_phone)
+        if user is not None:
+            organization = retrieve_organization(user)
+            return ErrorMsg(
+                error_str=USER_EXISTS_ERROR_MSG.to_str(
+                    organization.language,
+                    val_1=organization.name,
+                )
+            ).to_str(organization.language)
 
         # Checks that there are at least 3 spaces defining the request.
         if len(request) < 4:
@@ -540,49 +561,26 @@ class OrganizationCommand(Command):
 
         name = " ".join(request[3:])
 
-        # Record information in the database as long as the owner is already
-        # registered. If the owner is already registered, information is just
-        # updated.
-        user = retrieve_user(whatsapp_phone)
-        update = False
-        if user is None:
-            # Record new information in the database.
-            organization_id = record_organization(
-                created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
-                name=name,
-                language=language,
-                currency=currency,
-            )
-            record_user(
-                organization_id=organization_id,
-                created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
-                whatsapp_phone=whatsapp_phone,
-                name="",
-                is_admin=True,
-            )
-
-        else:
-            if user.is_admin:
-                user, organization = retrieve_user_organization(whatsapp_phone)
-                update_organization(
-                    organization=organization,
-                    name=name,
-                    language=language,
-                    currency=currency,
-                )
-                update = True
-
-            else:
-                return ErrorMsg(
-                    error_str=USER_NOT_ADMIN_ERROR_MSG.to_str(language, val_1=body),
-                ).to_str(language)
+        # Record new information in the database.
+        organization_id = record_organization(
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            name=name,
+            language=language,
+            currency=currency,
+        )
+        record_user(
+            organization_id=organization_id,
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            whatsapp_phone=whatsapp_phone,
+            name="",
+            is_admin=True,
+        )
 
         return {
             "name": name,
             "language": language,
             "currency": currency,
             "whatsapp_phone": whatsapp_phone,
-            "update": update,
         }
 
     def message(self, organization: Organization, user: User, **kwargs) -> str:
@@ -590,15 +588,6 @@ class OrganizationCommand(Command):
         language = kwargs.get("language")
         currency = kwargs.get("currency")
         whatsapp_phone = kwargs.get("whatsapp_phone")
-        update = bool(kwargs.get("update"))
-
-        if update:
-            return UPDATE_ORGANIZATION_MSG.to_str(
-                language,
-                val_1=name,
-                val_2=language,
-                val_3=currency,
-            )
 
         return NEW_ORGANIZATION_MSG.to_str(
             language,
@@ -609,7 +598,123 @@ class OrganizationCommand(Command):
         )
 
     def help_message(self, organization: Organization) -> str | None:
-        return super().help_message(organization)
+        # This command is only used once so no generalized help should be shown.
+        return None
+
+
+@dataclass
+class Name(Command):
+    """Set the user's name."""
+
+    regexp: str = "^(name|nombre)$"
+
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        user: User = kwargs.get("user")
+        body = kwargs.get("body")
+        request = body.split(" ")
+
+        # Checks that there is at least 1 space defining the request.
+        if len(request) < 2:
+            return ErrorMsg(
+                error_str=NAME_LENGTH_ERROR_MSG.to_str(
+                    organization.language, val_1=body
+                ),
+            ).to_str(organization.language)
+
+        name = " ".join(request[1:])
+        updated_user = update_user(user=user, name=name)
+
+        return {"updated_user": updated_user}
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        updated_user: User = kwargs.get("updated_user")
+
+        return UPDATED_USER_MSG.to_str(
+            organization.language,
+            val_1=updated_user.name,
+            val_2=updated_user.whatsapp_phone,
+            val_3="✅" if updated_user.is_admin else "🚫",
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        return NAME_HELP_MSG.to_str(organization.language)
+
+
+@dataclass
+class Add(Command):
+    """Add a new user to the organization."""
+
+    regexp: str = "^(add|agregar)$"
+
+    def execute(
+        self, organization: Organization, **kwargs
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        user: User = kwargs.get("user")
+        body = kwargs.get("body")
+        request = body.split(" ")
+
+        # Only an admin can execute this request.
+        if not user.is_admin:
+            return ErrorMsg(
+                error_str=USER_NOT_ADMIN_ERROR_MSG.to_str(
+                    organization.language, val_1=organization.name
+                )
+            ).to_str(organization.language)
+
+        # Checks that there is at least 1 space defining the request.
+        if len(request) < 2:
+            return ErrorMsg(
+                error_str=ADD_LENGTH_ERROR_MSG.to_str(
+                    organization.language, val_1=body
+                ),
+            ).to_str(organization.language)
+
+        # Checks that the phone number is valid.
+        phone_number = request[1]
+        if not re.compile(r"^\+[1-9]\d{1,14}$").match(phone_number):
+            return ErrorMsg(
+                error_str=INVALID_PHONE_ERROR_MSG.to_str(
+                    organization.language, val_1=phone_number
+                )
+            ).to_str(organization.language)
+
+        # Checks that the new user is not registered to another organization.
+        added_user = retrieve_user(phone_number)
+        if added_user is not None:
+            return ErrorMsg(
+                error_str=ADDED_USER_EXISTS_ERROR_MSG.to_str(
+                    organization.language, val_1=phone_number
+                )
+            ).to_str(organization.language)
+
+        # Records the user in the database.
+        record_user(
+            organization_id=organization.id,
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            whatsapp_phone=phone_number,
+            name="",
+            is_admin=False,
+        )
+
+        # TODO: send the new user a whatsapp message with the welcome message.
+
+        return {"phone_number": phone_number}
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        phone_number = kwargs.get("phone_number")
+
+        return ADDED_USER_MSG.to_str(
+            organization.language,
+            val_1=organization.name,
+            val_2=phone_number,
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        return ADD_HELP_MSG.to_str(organization.language)
 
 
 # Instantiate the supported commands once because they contain static
@@ -621,4 +726,6 @@ COMMANDS: Dict[str, Command | Transaction] = {
     "non": NonEssential(),
     "inc": Income(),
     "org": OrganizationCommand(),
+    "name": Name(),
+    "add": Add(),
 }

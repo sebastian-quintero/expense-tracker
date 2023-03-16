@@ -7,7 +7,6 @@ from app.messages import (
     COMMAND_UNSUPPORTED_ERROR_MSG,
     UNEXPECTED_ERROR_MSG,
     USER_ORG_ERROR_MSG,
-    ErrorMsg,
 )
 
 # Configure logs to appear in the terminal.
@@ -86,11 +85,7 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
 
     # The command is not supported.
     if message == "":
-        message = ErrorMsg(
-            error_str=COMMAND_UNSUPPORTED_ERROR_MSG.to_str(
-                organization.language, val_1=Body
-            )
-        ).to_str(organization.language)
+        message = COMMAND_UNSUPPORTED_ERROR_MSG.format(val_1=Body)
 
     # The final response is assembled.
     response = MessagingResponse()

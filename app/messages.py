@@ -68,8 +68,8 @@ class HelpIntroMsg(Message):
         "\t 🌎 {text_4}: {val_4}"
         "\n\n"
         "👻 {text_5} 🤔:\n\n"
-        "📲 ```help```\n"
-        "{text_6} 🥶."
+        "📲 *{text_6}*\n"
+        "{text_7} 🥶."
         "\n\n"
     )
     translations: Dict[Language, Dict[str, str]] = {
@@ -79,7 +79,8 @@ class HelpIntroMsg(Message):
             "text_3": "Language",
             "text_4": "Currency",
             "text_5": "You asked for help! Here is what you can type",
-            "text_6": "Show this help menu",
+            "text_6": "help",
+            "text_7": "Show this help menu",
         },
         Language.es: {
             "text_1": "¡Hola",
@@ -87,7 +88,8 @@ class HelpIntroMsg(Message):
             "text_3": "Idioma",
             "text_4": "Moneda",
             "text_5": "¡Pediste ayuda! Esto es lo que puedes escribir",
-            "text_6": "Muestra este menú de ayuda",
+            "text_6": "ayuda",
+            "text_7": "Muestra este menú de ayuda",
         },
     }
 
@@ -130,20 +132,20 @@ class TransactionCurrencyMsg(Message):
 
 class TransactionHelpMsg(Message):
     base_text: str = (
-        "📲 ```{val_1} <{text_1}> <{text_2}>```\n"
+        "📲 *{val_1} {text_1} {text_2}*\n"
         "{text_3} {val_2} {val_3}. "
-        "{text_4} {val_4}, {text_5} ```ess-usd``` 🇺🇸. "
+        "{text_4} {val_4}, {text_5} *ess-usd* 🇺🇸. "
         "{text_6} 🪄 {text_7} {val_5}.\n"
         "💡 {text_8}:\n"
-        "```{val_6} 3600 {text_9}```\n"
-        "```{val_7}-usd 87 {text_10} USD```"
+        "*{val_6} 3600 {text_9}*\n"
+        "*{val_7}-usd 87 {text_10} USD*"
     )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
-            "text_1": "value",
-            "text_2": "description",
+            "text_1": "VALUE",
+            "text_2": "DESCRIPTION",
             "text_3": "Record a transaction of type",
-            "text_4": "Add ```-CURRENCY``` if the transaction's currency is not",
+            "text_4": "Add *-CURRENCY* if the transaction's currency is not",
             "text_5": "for example",
             "text_6": "The app will automatically",
             "text_7": "convert it to",
@@ -152,10 +154,10 @@ class TransactionHelpMsg(Message):
             "text_10": "a transaction in the currency",
         },
         Language.es: {
-            "text_1": "valor",
-            "text_2": "descripción",
+            "text_1": "VALOR",
+            "text_2": "DESCRIPCIÓN",
             "text_3": "Registra una transacción de tipo",
-            "text_4": "Agrega ```-MONEDA``` si la moneda de la transacción no es",
+            "text_4": "Agrega *-MONEDA* si la moneda de la transacción no es",
             "text_5": "por ejemplo",
             "text_6": "La aplicación automaticamente",
             "text_7": "la va a convertir a",
@@ -196,13 +198,15 @@ class ReportMsg(Message):
 
 
 class ReportHelpMsg(Message):
-    base_text: str = "📲 ```report```\n{text_1} 📊."
+    base_text: str = "📲 *{text_1}*\n{text_2} 📊."
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
-            "text_1": "Type this to get a financial report of your transactions",
+            "text_1": "report",
+            "text_2": "Type this to get a financial report of your transactions",
         },
         Language.es: {
-            "text_1": "Usa este comando para obtener el reporte financiero de tus transacciones"
+            "text_1": "reporte",
+            "text_2": "Usa este comando para obtener el reporte financiero de tus transacciones",
         },
     }
 
@@ -213,17 +217,19 @@ class ErrorMsg(Message):
     instantiated when the error presents itself."""
 
     error_str: str
-    base_text: str = "🚫 {error_str}. {text_1} 🙏🏻 {text_2} ```help``` {text_3} ℹ️."
+    base_text: str = "🚫 {error_str}. {text_1} 🙏🏻 {text_2} *{text_3}* {text_4} ℹ️."
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "Try again",
             "text_2": "or use the",
-            "text_3": "command for more info",
+            "text_3": "help",
+            "text_4": "command for more info",
         },
         Language.es: {
             "text_1": "Intenta otra vez",
             "text_2": "o usa el comando",
-            "text_3": "para obtener más información",
+            "text_3": "ayuda",
+            "text_4": "para obtener más información",
         },
     }
 
@@ -240,7 +246,7 @@ class ErrorMsg(Message):
 
 
 class ValueErrorMsg(Message):
-    base_text: str = "{text_1}: {val_1}"
+    base_text: str = "{text_1}: *{val_1}*"
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "Second element of the command should be a numerical transaction value"
@@ -252,7 +258,7 @@ class ValueErrorMsg(Message):
 
 
 class LengthErrorMsg(Message):
-    base_text: str = '{text_1} "{val_1}" {text_2}'
+    base_text: str = "{text_1} *{val_1}* {text_2}"
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "Command",
@@ -277,8 +283,17 @@ class NegativeErrorMsg(Message):
     }
 
 
+COMMAND_UNSUPPORTED_ERROR_MSG: str = (
+    "🇬🇧\n"
+    "🚫 The command (message body) *{val_1}* is not valid. 🙏🏻 Please use the *help* command for more info ℹ️."
+    "\n\n"
+    "🇪🇸\n"
+    "🚫 El comando (cuerpo del mensaje) *{val_1}* no es válido. 🙏🏻 Por favor usa el comando *ayuda* para más info ℹ️."
+)
+
+
 class CommandUnsupportedErrorMsg(Message):
-    base_text: str = '{text_1} "{val_1}" {text_2}'
+    base_text: str = "{text_1} *{val_1}* {text_2}"
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "The command (message body)",
@@ -313,29 +328,29 @@ UNEXPECTED_ERROR_MSG: str = (
 
 CONF_LENGTH_ERROR_MSG: str = (
     "🇬🇧\n"
-    '🚫 Command "{val_1}" should have at least 3 spaces to configure an organization.'
+    "🚫 Command *{val_1}* should have at least 3 spaces to configure an organization."
     "\n\n"
     "🇪🇸\n"
-    '🚫 El comando "{val_1}" debe tener al menos 3 espacios para configurar una organización.'
+    "🚫 El comando *{val_1}* debe tener al menos 3 espacios para configurar una organización."
 )
 
 CONF_LANGUAGE_ERROR_MSG: str = (
     "🇬🇧\n"
-    '🚫 The second element of the command: "{val_1}"; should be one of the following supported languages: {val_2}. '
+    "🚫 The second element of the command: *{val_1}*; should be one of the following supported languages: {val_2}. "
     "You may use upper or lower case."
     "\n\n"
     "🇪🇸\n"
-    '🚫 El segundo elemento del comando: "{val_1}"; debe ser alguno de los siguientes idiomas soportados: {val_2}. '
+    "🚫 El segundo elemento del comando: *{val_1}*; debe ser alguno de los siguientes idiomas soportados: {val_2}. "
     "Puedes usar mayúsculas o minúsculas."
 )
 
 CONF_CURRENCY_ERROR_MSG: str = (
     "🇬🇧\n"
-    '🚫 The third element of the command: "{val_1}"; should be one of the following supported currencies: {val_2}. '
+    "🚫 The third element of the command: *{val_1}*; should be one of the following supported currencies: {val_2}. "
     "You may use upper or lower case."
     "\n\n"
     "🇪🇸\n"
-    '🚫 El tercer elemento del comando: "{val_1}"; debe ser alguna de las siguientes monedas soportadas: {val_2}. '
+    "🚫 El tercer elemento del comando: *{val_1}*; debe ser alguna de las siguientes monedas soportadas: {val_2}. "
     "Puedes usar mayúsculas o minúsculas."
 )
 
@@ -348,8 +363,8 @@ class NewOrganizationMessage(Message):
         "\t🌎 {text_4}: {val_3}\n"
         "\t📞 {text_5}: {val_4}\n\n"
         "{text_6}\n"
-        "\t📲 ```name <{text_7}>```: {text_8}.\n"
-        "\t📲 ```add <{text_9}>```: {text_10}.\n"
+        "\t1. 📲 *{text_7} {text_8}*: {text_9}.\n"
+        "\t2. 📲 *{text_10} {text_11}*: {text_12}."
     )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
@@ -359,10 +374,12 @@ class NewOrganizationMessage(Message):
             "text_4": "Currency",
             "text_5": "Admin Phone Number",
             "text_6": "As a next step, you can use the following commands:",
-            "text_7": "Your Name",
-            "text_8": "set you user's name in the app",
-            "text_9": "Phone Number",
-            "text_10": "invite another user to your organization",
+            "text_7": "name",
+            "text_8": "YOUR NAME",
+            "text_9": "set you user's name in the app",
+            "text_10": "add",
+            "text_11": "PHONE NUMBER",
+            "text_12": "invite another user to your organization, use the country code, e. g.: +12134567890",
         },
         Language.es: {
             "text_1": "¡Se creó exitosamente una nueva organización!",
@@ -371,45 +388,189 @@ class NewOrganizationMessage(Message):
             "text_4": "Moneda",
             "text_5": "Teléfono del administrador",
             "text_6": "Como siguiente paso, puedes utilizar los siguientes comandos:",
-            "text_7": "Tu Nombre",
-            "text_8": "configura el nombre de tu usuario en la app",
-            "text_9": "Número telefónico",
-            "text_10": "invita a otro usuario a tu organización",
-        },
-    }
-
-
-class UpdateOrganizationMessage(Message):
-    base_text: str = (
-        "✅ {text_1} 🎉\n"
-        "\t📝 {text_2}: {val_1}\n"
-        "\t🇬🇧🇪🇸 {text_3}: {val_2}\n"
-        "\t🌎 {text_4}: {val_3}"
-    )
-    translations: Dict[Language, Dict[str, str]] = {
-        Language.en: {
-            "text_1": "Successfully updated your organization!",
-            "text_2": "Name",
-            "text_3": "Language",
-            "text_4": "Currency",
-        },
-        Language.es: {
-            "text_1": "¡Se actualizó exitosamente tu organización!",
-            "text_2": "Nombre",
-            "text_3": "Idioma",
-            "text_4": "Moneda",
+            "text_7": "nombre",
+            "text_8": "TU NOMBRE",
+            "text_9": "configura el nombre de tu usuario en la app",
+            "text_10": "agregar",
+            "text_11": "NÚMERO TELEFÓNICO",
+            "text_12": "invita a otro usuario a tu organización, usa el código del país, por ejemplo: +573124567890",
         },
     }
 
 
 class UserNotAdminErrorMsg(Message):
-    base_text: str = '{text_1}: "{val_1}"'
+    base_text: str = "{text_1}: *{val_1}*"
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "You are not the admin of the organization and cannot execute the command",
         },
         Language.es: {
             "text_1": "No eres el administrador de la organización y por lo tanto no puedes ejecutar el comando",
+        },
+    }
+
+
+class UserExistsErrorMsg(Message):
+    base_text: str = "{text_1}: *{val_1}*"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "You are already part of the organization",
+        },
+        Language.es: {
+            "text_1": "Ya eres parte de la organización",
+        },
+    }
+
+
+class NameLengthErrorMsg(Message):
+    base_text: str = "{text_1} *{val_1}* {text_2}"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Command",
+            "text_2": "should have at least 1 space to change your user's name",
+        },
+        Language.es: {
+            "text_1": "El comando",
+            "text_2": "debe tener al menos 1 espacio para cambiar el nombre de tu usuario",
+        },
+    }
+
+
+class UpdatedUserMsg(Message):
+    base_text: str = (
+        "✅ {text_1} 🎉\n"
+        "\t📝 {text_2}: {val_1}\n"
+        "\t📞 {text_3}: {val_2}\n"
+        "\t💻 {text_4}?: {val_3}"
+    )
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Successfully updated your user! Here is your info",
+            "text_2": "Name",
+            "text_3": "Phone Number",
+            "text_4": "Organization Admin",
+        },
+        Language.es: {
+            "text_1": "¡Se actualizó exitosamente tu usuario! Aquí está tu info",
+            "text_2": "Nombre",
+            "text_3": "Teléfono",
+            "text_4": "¿Administrador de la organización",
+        },
+    }
+
+
+class NameHelpMsg(Message):
+    base_text: str = (
+        "📲 *{text_1} {text_2}*\n" "{text_3} 📝.\n" "💡 {text_4}:\n" "*{text_1} {text_5}*"
+    )
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "name",
+            "text_2": "YOUR NAME",
+            "text_3": "Change your user's name in the app",
+            "text_4": "Here is an example of using this command (you can use upper or lower case)",
+            "text_5": "John Doe",
+        },
+        Language.es: {
+            "text_1": "nombre",
+            "text_2": "TU NOMBRE",
+            "text_3": "Cambia el nombre de tu usuario en la app",
+            "text_4": "Aquí hay un ejemplo de este comando (puedes usar mayúsculas o minúsculas)",
+            "text_5": "Pepito Pérez",
+        },
+    }
+
+
+class AddLengthErrorMsg(Message):
+    base_text: str = "{text_1} *{val_1}* {text_2}"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Command",
+            "text_2": "should have at least 1 space to add a new user to the organization",
+        },
+        Language.es: {
+            "text_1": "El comando",
+            "text_2": "debe tener al menos 1 espacio para agregar un usuario a la organización",
+        },
+    }
+
+
+class InvalidPhoneErrorMsg(Message):
+    base_text: str = "{text_1} *{val_1}* {text_2}"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "The phone number",
+            "text_2": (
+                "is not valid, as it should have the symbol *+*, "
+                "the country code and the number, for example: +15234567890"
+            ),
+        },
+        Language.es: {
+            "text_1": "El número",
+            "text_2": (
+                "no es válido, pues debe tener el símbolo *+*, "
+                "el código del país y el número, por ejemplo: +573161234567"
+            ),
+        },
+    }
+
+
+class AddedUserMsg(Message):
+    base_text: str = "✅ {text_1}: {val_1} 🎉\n" "\t📞 {text_2}: {val_2}\n"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Successfully added a new user to your organization",
+            "text_2": "Phone Number",
+        },
+        Language.es: {
+            "text_1": "Se agregó exitosamente un usuario nuevo a tu organización",
+            "text_2": "Teléfono",
+        },
+    }
+
+
+class AddedUserExistsErrorMsg(Message):
+    base_text: str = "{text_1} 📞 *{val_1}* {text_2}"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "The user with phone number",
+            "text_2": "is already part of an organization and cannot be added again",
+        },
+        Language.es: {
+            "text_1": "El usuario con número de teléfono",
+            "text_2": "ya es parte de una organización y no puede ser agregado nuevamente",
+        },
+    }
+
+
+class AddHelpMsg(Message):
+    base_text: str = (
+        "📲 *{text_1} {text_2}*\n" "👋 {text_3}.\n" "💡 {text_4}:\n" "*{text_1} {text_5}*"
+    )
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "add",
+            "text_2": "PHONE NUMBER",
+            "text_3": (
+                "Add a new user to your organization. "
+                "Only an Admin can execute this command. "
+                "The phone number should begin with the symbol *+*, "
+                "followed by the country's code and the complete phone number"
+            ),
+            "text_4": "Here is an example of using this command",
+            "text_5": "+12345678090",
+        },
+        Language.es: {
+            "text_1": "agregar",
+            "text_2": "NÚMERO TELEFÓNICO",
+            "text_3": (
+                "Agrega un nuevo usuario a tu organización. "
+                "Sólo un administrador puede ejecutar este comando. "
+                "El número telefónico debe empezar con el símbolo *+*, "
+                "seguido por el código del país y el número completo"
+            ),
+            "text_4": "Aquí hay un ejemplo de este comando",
+            "text_5": "+573152843265",
         },
     }
 
@@ -424,7 +585,14 @@ REPORT_HELP_MSG = ReportHelpMsg()
 VALUE_ERROR_MSG = ValueErrorMsg()
 LENGTH_ERROR_MSG = LengthErrorMsg()
 NEGATIVE_ERROR_MSG = NegativeErrorMsg()
-COMMAND_UNSUPPORTED_ERROR_MSG = CommandUnsupportedErrorMsg()
 NEW_ORGANIZATION_MSG = NewOrganizationMessage()
-UPDATE_ORGANIZATION_MSG = UpdateOrganizationMessage()
 USER_NOT_ADMIN_ERROR_MSG = UserNotAdminErrorMsg()
+USER_EXISTS_ERROR_MSG = UserExistsErrorMsg()
+NAME_LENGTH_ERROR_MSG = NameLengthErrorMsg()
+UPDATED_USER_MSG = UpdatedUserMsg()
+NAME_HELP_MSG = NameHelpMsg()
+ADD_LENGTH_ERROR_MSG = AddLengthErrorMsg()
+INVALID_PHONE_ERROR_MSG = InvalidPhoneErrorMsg()
+ADDED_USER_MSG = AddedUserMsg()
+ADDED_USER_EXISTS_ERROR_MSG = AddedUserExistsErrorMsg()
+ADD_HELP_MSG = AddHelpMsg()

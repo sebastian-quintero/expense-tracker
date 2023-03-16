@@ -154,15 +154,24 @@ def retrieve_user(whatsapp_phone: str) -> User | None:
         statement = select(User).where(User.whatsapp_phone == whatsapp_phone)
         logging.info(f"executing sql statement: {statement}")
         results = session.exec(statement)
-        users = [result for result in results]
         try:
-            user = users[0]
-            logging.info(f"successfully retrieved user: {user}")
-        except IndexError:
-            logging.error(f"no user found for whatsapp phone {whatsapp_phone}")
+            user = results.one()
+        except Exception:
             user = None
 
     return user
+
+
+def retrieve_organization(user: User) -> Organization:
+    """Retrieves the organization for the given user."""
+
+    with Session(ENGINE) as session:
+        statement = select(Organization).where(Organization.id == user.organization_id)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        organization = results.one()
+
+    return organization
 
 
 def record_organization(
@@ -220,17 +229,17 @@ def record_user(
     logging.info("successfully recorded user")
 
 
-def update_organization(
-    organization: Organization,
-    name: str,
-    language: Language,
-    currency: Currency,
-):
-    """Update the information of an organization in the database."""
+def update_user(user: User, name: str) -> User:
+    """Update a table entry for a user."""
 
     with Session(ENGINE) as session:
-        organization.name = name
-        organization.language = language
-        organization.currency = currency
-        session.add(organization)
+        statement = select(User).where(User.id == user.id)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        user = results.one()
+        user.name = name
+        session.add(user)
         session.commit()
+        session.refresh(user)
+
+    return user
