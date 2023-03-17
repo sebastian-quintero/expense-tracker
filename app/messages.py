@@ -575,6 +575,70 @@ class AddHelpMsg(Message):
     }
 
 
+class UserWelcomeMsg(Message):
+    base_text: str = (
+        "👋 {text_1} 📊💸 {text_2}\n\n"
+        "{text_3}:\n"
+        "📝 {text_4} {val_1}\n"
+        "🇬🇧🇪🇸 {text_5} {val_2}\n"
+        "🌎 {text_6} {val_3}\n"
+        "🧙‍♀️📞 {text_7} {val_4}\n\n"
+        "{text_8}:\n"
+        "📲 *{text_9}*\n\n"
+        "💡 {text_10}:\n"
+        "- *{text_11}* 👉 {text_12}.\n\n"
+        "{text_13}.\n\n"
+        "{text_14} 🥂"
+    )
+
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "Hello there! You have been added to a WhatsApp Expense Tracker",
+            "text_2": "organization.",
+            "text_3": "Here are the details of the organization",
+            "text_4": "Name:",
+            "text_5": "Language:",
+            "text_6": "Currency:",
+            "text_7": "Admin Phone Number :",
+            "text_8": "You can get started by using the *name* command to set your name in the app",
+            "text_9": "name YOUR NAME",
+            "text_10": "Here is an example of using the command",
+            "text_11": "name John Doe",
+            "text_12": 'Set your name to be "John Doe"',
+            "text_13": "You can use the *help* command at anytime to explore what is possible",
+            "text_14": "Have fun!",
+        },
+        Language.es: {
+            "text_1": "¡Hola! Has sido agregado/a a una organización para seguir gastos en WhatsApp",
+            "text_2": ".",
+            "text_3": "Éstos son los detalles de la organización",
+            "text_4": "Nombre:",
+            "text_5": "Idioma:",
+            "text_6": "Moneda:",
+            "text_7": "Teléfono del Administrador:",
+            "text_8": "Puedes empezar usando el comando *nombre* para establecer tu nombre en la app",
+            "text_9": "nombre TU NOMBRE",
+            "text_10": "Aquí hay un ejemplo de cómo usar el comando",
+            "text_11": "nombre Pepito Pérez",
+            "text_12": 'Configura tu nombre para que sea "Pepito Pérez"',
+            "text_13": "Puedes usar el comando *ayuda* en cualquier momento para explorar qué es posible.",
+            "text_14": "¡Diviértete!",
+        },
+    }
+
+
+class SendMessageErrorMsg(Message):
+    base_text: str = "{text_1}: 📞 *{val_1}*"
+    translations: Dict[Language, Dict[str, str]] = {
+        Language.en: {
+            "text_1": "There was an error while trying to send the invitation message to this number",
+        },
+        Language.es: {
+            "text_1": "Hubo un error al intentar enviar el mensaje de invitación a este número",
+        },
+    }
+
+
 # The classes are instantiated once because they hold static information.
 HELP_INTRO_MSG = HelpIntroMsg()
 TRANSACTION_MSG = TransactionMsg()
@@ -596,3 +660,5 @@ INVALID_PHONE_ERROR_MSG = InvalidPhoneErrorMsg()
 ADDED_USER_MSG = AddedUserMsg()
 ADDED_USER_EXISTS_ERROR_MSG = AddedUserExistsErrorMsg()
 ADD_HELP_MSG = AddHelpMsg()
+USER_WELCOME_MSG = UserWelcomeMsg()
+SEND_MESSAGE_ERROR_MSG = SendMessageErrorMsg()

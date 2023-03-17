@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Tuple
 import pytz
 from dotenv import load_dotenv
 from requests import get
+from twilio.rest import Client
+from twilio.rest.api.v2010.account.message import MessageInstance
 
 from app.database import (
     Currency,
@@ -45,18 +47,22 @@ from app.messages import (
     NEW_ORGANIZATION_MSG,
     REPORT_HELP_MSG,
     REPORT_MSG,
+    SEND_MESSAGE_ERROR_MSG,
     TRANSACTION_CURRENCY_MSG,
     TRANSACTION_HELP_MSG,
     TRANSACTION_MSG,
     UPDATED_USER_MSG,
     USER_EXISTS_ERROR_MSG,
     USER_NOT_ADMIN_ERROR_MSG,
+    USER_WELCOME_MSG,
     VALUE_ERROR_MSG,
     ErrorMsg,
 )
 
 # Load environment variables from a .env file.
 load_dotenv()
+
+TWILIO_CLIENT = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 
 @dataclass
@@ -377,7 +383,7 @@ class Transaction(Command):
         # Converts the value in case a foreign currency is used.
         value_converted = deepcopy(value)
         if currency != organization.currency:
-            value_converted = self.convert(
+            value_converted = self._convert(
                 value=value,
                 base_currency=currency,
                 target_currency=organization.currency,
@@ -448,7 +454,7 @@ class Transaction(Command):
         return
 
     @staticmethod
-    def convert(value: float, base_currency: str, target_currency: str) -> float:
+    def _convert(value: float, base_currency: str, target_currency: str) -> float:
         """convert the value to the default currency used with an external API."""
 
         url = f"https://api.apilayer.com/fixer/latest?base={base_currency}&symbols={target_currency}"
@@ -691,6 +697,24 @@ class Add(Command):
                 )
             ).to_str(organization.language)
 
+        # Send the whatsapp message and check if it did not return any errors.
+        message = self._send_message(
+            organization=organization,
+            user=user,
+            phone_number=phone_number,
+        )
+        if (
+            message is None
+            or message.error_code is not None
+            or message.error_message is not None
+        ):
+            return ErrorMsg(
+                error_str=SEND_MESSAGE_ERROR_MSG.to_str(
+                    organization.language,
+                    val_1=phone_number,
+                )
+            ).to_str(organization.language)
+
         # Records the user in the database.
         record_user(
             organization_id=organization.id,
@@ -699,8 +723,6 @@ class Add(Command):
             name="",
             is_admin=False,
         )
-
-        # TODO: send the new user a whatsapp message with the welcome message.
 
         return {"phone_number": phone_number}
 
@@ -715,6 +737,31 @@ class Add(Command):
 
     def help_message(self, organization: Organization) -> str | None:
         return ADD_HELP_MSG.to_str(organization.language)
+
+    @staticmethod
+    def _send_message(
+        organization: Organization, user: User, phone_number: str
+    ) -> MessageInstance | None:
+        """Send a message to the given phone number notifying them that they
+        have been added to an organization."""
+
+        try:
+            message = TWILIO_CLIENT.messages.create(
+                from_=os.getenv("TWILIO_PHONE"),
+                body=USER_WELCOME_MSG.to_str(
+                    organization.language,
+                    val_1=organization.name,
+                    val_2=organization.language,
+                    val_3=organization.currency,
+                    val_4=user.whatsapp_phone,
+                ),
+                to=f"whatsapp:{phone_number}",
+            )
+            return message
+
+        except Exception as ex:
+            logging.exception(f"could not send message: {ex}")
+            return None
 
 
 # Instantiate the supported commands once because they contain static
