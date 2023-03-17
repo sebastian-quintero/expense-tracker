@@ -135,10 +135,7 @@ class TransactionHelpMsg(Message):
         "📲 *{val_1} {text_1} {text_2}*\n"
         "{text_3} {val_2} {val_3}. "
         "{text_4} {val_4}, {text_5} *ess-usd* 🇺🇸. "
-        "{text_6} 🪄 {text_7} {val_5}.\n"
-        "💡 {text_8}:\n"
-        "*{val_6} 3600 {text_9}*\n"
-        "*{val_7}-usd 87 {text_10} USD*"
+        "{text_6} 🪄 {text_7} {val_5}."
     )
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
@@ -149,9 +146,6 @@ class TransactionHelpMsg(Message):
             "text_5": "for example",
             "text_6": "The app will automatically",
             "text_7": "convert it to",
-            "text_8": "Here are some examples when using this command (you can use upper or lower case)",
-            "text_9": "a sample transaction",
-            "text_10": "a transaction in the currency",
         },
         Language.es: {
             "text_1": "VALOR",
@@ -161,9 +155,6 @@ class TransactionHelpMsg(Message):
             "text_5": "por ejemplo",
             "text_6": "La aplicación automaticamente",
             "text_7": "la va a convertir a",
-            "text_8": "Aquí hay algunos ejemplos para usar este comando (puedes usar mayúsculas o minúsculas)",
-            "text_9": "una transacción de prueba",
-            "text_10": "transacción en la moneda",
         },
     }
 

@@ -459,8 +459,6 @@ class Transaction(Command):
             val_3=self.emoji,
             val_4=organization.currency,
             val_5=organization.currency,
-            val_6=self.user_label,
-            val_7=self.user_label,
         )
 
     def label(self, language: Language) -> str:
