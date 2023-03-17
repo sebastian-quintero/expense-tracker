@@ -64,7 +64,7 @@ class HelpIntroMsg(Message):
     base_text: str = (
         "👋 {text_1} {val_1}!\n"
         "{text_2} {val_2} 🧙‍♀️:\n"
-        "\t 🇬🇧🇪🇸 {text_3}: {val_3}"
+        "\t 🇬🇧🇪🇸 {text_3}: {val_3}\n"
         "\t 🌎 {text_4}: {val_4}"
         "\n\n"
         "👻 {text_5} 🤔:\n\n"
