@@ -105,13 +105,23 @@ def record_transaction(
     logging.info("successfully recorded transaction")
 
 
-def retrieve_transactions(date: datetime) -> List[Transaction]:
-    """Retrieve transactions from the transactions table."""
+def retrieve_transactions(
+    date: datetime,
+    organization: Organization,
+) -> List[Transaction]:
+    """Retrieve transactions from the transactions table for the given
+    organization."""
 
     with Session(ENGINE) as session:
         # Executes statement to retrieve info from the database.
-        statement = select(Transaction).where(
-            Transaction.created_at >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo)
+        statement = (
+            select(Transaction)
+            .join(User)
+            .where(
+                Transaction.created_at
+                >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo),
+                User.organization_id == organization.id,
+            )
         )
         logging.info(f"executing sql statement: {statement}")
         transactions = session.exec(statement)
@@ -241,5 +251,7 @@ def update_user(user: User, name: str) -> User:
         session.add(user)
         session.commit()
         session.refresh(user)
+
+    logging.info("successfully updated user")
 
     return user

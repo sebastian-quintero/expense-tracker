@@ -50,8 +50,7 @@ def twilio(response: Response, From: str = Form(), Body: str = Form()) -> str:
         if not command.match(body=Body):
             continue
 
-        # Check if the user is authorized to execute the command. Replaces
-        # whitespace with a plus sign and gets the phone number from the str.
+        # Check if the user is authorized to execute the command.
         whatsapp_phone = From.replace(" ", "+").split(":")[1]
         is_authorized, user, organization = command.is_authorized(whatsapp_phone)
         if not is_authorized:

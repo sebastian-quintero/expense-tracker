@@ -181,16 +181,21 @@ class Report(Command):
         # Tally transactions by creating monthly totals and differentiating
         # between credits and debits. Returns all the transactions in the
         # current month.
-        transactions = retrieve_transactions(date=datetime.now())
+        transactions = retrieve_transactions(
+            date=datetime.now(),
+            organization=organization,
+        )
         current_month = datetime.now(pytz.timezone(os.getenv("TIMEZONE"))).month
 
         # Tally transactions by type.
         totals = defaultdict(lambda: defaultdict(int))
         current = {}
+        count = defaultdict(int)
         for transaction in transactions:
             # Tally by month.
             month_key = f"{transaction.created_at.month}. {MONTHS[organization.language][transaction.created_at.month]}"
             totals[month_key][transaction.label] += transaction.value_converted
+            count[month_key] += 1
 
             # Gather the current month's expenses to later get the highest.
             if (
@@ -204,16 +209,26 @@ class Report(Command):
         # Sort keys.
         totals = dict(sorted(totals.items(), reverse=True))
 
-        return {"totals": totals, "current": current}
+        return {"totals": totals, "current": current, "count": count}
 
     def message(self, organization: Organization, user: User, **kwargs) -> str:
-        totals, current = kwargs.get("totals"), kwargs.get("current")
+        totals, current, count = (
+            kwargs.get("totals"),
+            kwargs.get("current"),
+            kwargs.get("count"),
+        )
 
         # Describe monthly totals.
         monthly_totals_msg = ""
         for month, financials in totals.items():
             monthly_totals_msg += "----------- ⏳ -----------\n"
             monthly_totals_msg += f"💰 {month}\n"
+            count_text = (
+                "Transactions"
+                if organization.language == Language.en
+                else "Transacciones"
+            )
+            monthly_totals_msg += f"🔢 # {count_text} = {count.get(month)}\n"
 
             # Get the actual financials.
             debits = financials.get(COMMANDS["inc"].database_label, 0)
