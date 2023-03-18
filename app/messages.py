@@ -612,7 +612,7 @@ class UserWelcomeMsg(Message):
             "text_10": "Aquí hay un ejemplo de cómo usar el comando",
             "text_11": "nombre Pepito Pérez",
             "text_12": 'Configura tu nombre para que sea "Pepito Pérez"',
-            "text_13": "Puedes usar el comando *ayuda* en cualquier momento para explorar qué es posible.",
+            "text_13": "Puedes usar el comando *ayuda* en cualquier momento para explorar qué es posible",
             "text_14": "¡Diviértete!",
         },
     }
