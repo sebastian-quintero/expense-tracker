@@ -134,7 +134,7 @@ class TransactionHelpMsg(Message):
     base_text: str = (
         "📲 *{val_1} {text_1} {text_2}*\n"
         "{text_3} {val_2} {val_3}. "
-        "{text_4} {val_4}, {text_5} *ess-usd* 🇺🇸. "
+        "{text_4} {val_4}, {text_5} *{val_1}-usd* 🇺🇸. "
         "{text_6} 🪄 {text_7} {val_5}."
     )
     translations: Dict[Language, Dict[str, str]] = {
