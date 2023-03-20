@@ -1,0 +1,30 @@
+organization: {
+  id: INT
+  created_at: DATETIME
+  name: VARCHAR(150)
+  currency: VARCHAR(3)
+  language: VARCHAR(2)
+}
+organization.shape: sql_table
+user: {
+  id: INT
+  organization_id: INT
+  created_at: DATETIME
+  whatsapp_phone: VARCHAR(15)
+  name: VARCHAR(150)
+  is_admin: BOOLEAN
+}
+user.shape: sql_table
+user.organization_id -> organization.id
+transaction: {
+  id: INT
+  user_id: INT
+  created_at: DATETIME
+  value: FLOAT
+  currency: VARCHAR(3)
+  currency: VARCHAR(3)
+  value_converted: FLOAT
+  description: VARCHAR(150)
+}
+transaction.shape: sql_table
+transaction.user_id -> user.id
