@@ -568,7 +568,7 @@ class AddHelpMsg(Message):
 
 class UserWelcomeMsg(Message):
     base_text: str = (
-        "👋 {text_1} 📊💸 {text_2}\n\n"
+        "👋 {text_1} 📊💸{text_2}\n\n"
         "{text_3}:\n"
         "📝 {text_4} {val_1}\n"
         "🇬🇧🇪🇸 {text_5} {val_2}\n"
@@ -585,7 +585,7 @@ class UserWelcomeMsg(Message):
     translations: Dict[Language, Dict[str, str]] = {
         Language.en: {
             "text_1": "Hello there! You have been added to a WhatsApp Expense Tracker",
-            "text_2": "organization.",
+            "text_2": " organization.",
             "text_3": "Here are the details of the organization",
             "text_4": "Name:",
             "text_5": "Language:",
