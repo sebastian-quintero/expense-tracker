@@ -7,35 +7,62 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from math import floor
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import pytz
 from dotenv import load_dotenv
 from requests import get
+from twilio.rest import Client
+from twilio.rest.api.v2010.account.message import MessageInstance
 
 from app.database import (
+    Currency,
     Language,
     Organization,
     User,
+    record_organization,
     record_transaction,
+    record_user,
+    retrieve_organization,
     retrieve_transactions,
+    retrieve_user,
+    retrieve_user_organization,
+    update_user,
 )
 from app.messages import (
+    ADD_HELP_MSG,
+    ADD_LENGTH_ERROR_MSG,
+    ADDED_USER_EXISTS_ERROR_MSG,
+    ADDED_USER_MSG,
+    CONF_CURRENCY_ERROR_MSG,
+    CONF_LANGUAGE_ERROR_MSG,
+    CONF_LENGTH_ERROR_MSG,
     HELP_INTRO_MSG,
+    INVALID_PHONE_ERROR_MSG,
     LENGTH_ERROR_MSG,
     MONTHS,
+    NAME_HELP_MSG,
+    NAME_LENGTH_ERROR_MSG,
     NEGATIVE_ERROR_MSG,
+    NEW_ORGANIZATION_MSG,
     REPORT_HELP_MSG,
     REPORT_MSG,
+    SEND_MESSAGE_ERROR_MSG,
     TRANSACTION_CURRENCY_MSG,
     TRANSACTION_HELP_MSG,
     TRANSACTION_MSG,
+    UPDATED_USER_MSG,
+    USER_EXISTS_ERROR_MSG,
+    USER_NOT_ADMIN_ERROR_MSG,
+    USER_WELCOME_MSG,
     VALUE_ERROR_MSG,
     ErrorMsg,
 )
 
 # Load environment variables from a .env file.
 load_dotenv()
+
+TWILIO_CLIENT = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 
 @dataclass
@@ -54,6 +81,24 @@ class Command:
 
         user_input = body.lower().split(" ")[0]
         return bool(re.compile(self.regexp).match(user_input))
+
+    def is_authorized(self, whatsapp_phone: str) -> Tuple[bool, User, Organization]:
+        """Determines if the given whatsapp phone number can execute the
+        command. Returns true and valid classes if the phone number is
+        authorized. If it is not authorized, the boolean flag is False and at
+        least one of the classes is None."""
+
+        # Get the user and org.
+        user, organization = retrieve_user_organization(whatsapp_phone=whatsapp_phone)
+
+        # Validates the sender is authorized.
+        flag = False if user is None or organization is None else True
+        if not flag:
+            logging.error(
+                f"Phone number {whatsapp_phone} is not authorized to execute command {self.regexp}"
+            )
+
+        return flag, user, organization
 
     def execute(
         self,
@@ -82,7 +127,7 @@ class Command:
 class Help(Command):
     """Display the help menu of the application."""
 
-    regexp: str = "help"
+    regexp: str = "^(help|ayuda)$"
 
     def execute(
         self,
@@ -126,7 +171,7 @@ class Help(Command):
 class Report(Command):
     """Get the financial report."""
 
-    regexp: str = "report"
+    regexp: str = "^(report|reporte)$"
 
     def execute(
         self,
@@ -136,16 +181,21 @@ class Report(Command):
         # Tally transactions by creating monthly totals and differentiating
         # between credits and debits. Returns all the transactions in the
         # current month.
-        transactions = retrieve_transactions(date=datetime.now())
+        transactions = retrieve_transactions(
+            date=datetime.now(),
+            organization=organization,
+        )
         current_month = datetime.now(pytz.timezone(os.getenv("TIMEZONE"))).month
 
         # Tally transactions by type.
         totals = defaultdict(lambda: defaultdict(int))
         current = {}
+        count = defaultdict(int)
         for transaction in transactions:
             # Tally by month.
             month_key = f"{transaction.created_at.month}. {MONTHS[organization.language][transaction.created_at.month]}"
             totals[month_key][transaction.label] += transaction.value_converted
+            count[month_key] += 1
 
             # Gather the current month's expenses to later get the highest.
             if (
@@ -159,16 +209,26 @@ class Report(Command):
         # Sort keys.
         totals = dict(sorted(totals.items(), reverse=True))
 
-        return {"totals": totals, "current": current}
+        return {"totals": totals, "current": current, "count": count}
 
     def message(self, organization: Organization, user: User, **kwargs) -> str:
-        totals, current = kwargs.get("totals"), kwargs.get("current")
+        totals, current, count = (
+            kwargs.get("totals"),
+            kwargs.get("current"),
+            kwargs.get("count"),
+        )
 
         # Describe monthly totals.
         monthly_totals_msg = ""
         for month, financials in totals.items():
             monthly_totals_msg += "----------- ⏳ -----------\n"
             monthly_totals_msg += f"💰 {month}\n"
+            count_text = (
+                "Transactions"
+                if organization.language == Language.en
+                else "Transacciones"
+            )
+            monthly_totals_msg += f"🔢 # {count_text} = {count.get(month)}\n"
 
             # Get the actual financials.
             debits = financials.get(COMMANDS["inc"].database_label, 0)
@@ -310,7 +370,7 @@ class Transaction(Command):
         if len(request) < 3:
             return ErrorMsg(
                 error_str=LENGTH_ERROR_MSG.to_str(organization.language, val_1=body)
-            )
+            ).to_str(organization.language)
 
         # Checks that the request has the correct ordering.
         value = 0
@@ -321,10 +381,12 @@ class Transaction(Command):
                 error_str=VALUE_ERROR_MSG.to_str(
                     organization.language, val_1=request[1]
                 )
-            )
+            ).to_str(organization.language)
 
         if value <= 0:
-            return ErrorMsg(error_str=NEGATIVE_ERROR_MSG.to_str(organization.language))
+            return ErrorMsg(
+                error_str=NEGATIVE_ERROR_MSG.to_str(organization.language),
+            ).to_str(organization.language)
 
         # Gets request elements.
         full_command = request[0].split("-")
@@ -336,7 +398,7 @@ class Transaction(Command):
         # Converts the value in case a foreign currency is used.
         value_converted = deepcopy(value)
         if currency != organization.currency:
-            value_converted = self.convert(
+            value_converted = self._convert(
                 value=value,
                 base_currency=currency,
                 target_currency=organization.currency,
@@ -397,8 +459,6 @@ class Transaction(Command):
             val_3=self.emoji,
             val_4=organization.currency,
             val_5=organization.currency,
-            val_6=self.user_label,
-            val_7=self.user_label,
         )
 
     def label(self, language: Language) -> str:
@@ -407,7 +467,7 @@ class Transaction(Command):
         return
 
     @staticmethod
-    def convert(value: float, base_currency: str, target_currency: str) -> float:
+    def _convert(value: float, base_currency: str, target_currency: str) -> float:
         """convert the value to the default currency used with an external API."""
 
         url = f"https://api.apilayer.com/fixer/latest?base={base_currency}&symbols={target_currency}"
@@ -472,6 +532,251 @@ class Income(Transaction):
         return self.database_label if language == Language.en else "Ingreso"
 
 
+@dataclass
+class OrganizationCommand(Command):
+    """Configure a new organization"""
+
+    regexp: str = "org"
+
+    def is_authorized(self, whatsapp_phone: str) -> Tuple[bool, User, Organization]:
+        # Overrides the general method because configuring an organization is
+        # always an authorized command.
+        return True, None, None
+
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        body = kwargs.get("body")
+        request = body.split(" ")
+        whatsapp_phone = kwargs.get("whatsapp_phone")
+
+        user = retrieve_user(whatsapp_phone)
+        if user is not None:
+            organization = retrieve_organization(user)
+            return ErrorMsg(
+                error_str=USER_EXISTS_ERROR_MSG.to_str(
+                    organization.language,
+                    val_1=organization.name,
+                )
+            ).to_str(organization.language)
+
+        # Checks that there are at least 3 spaces defining the request.
+        if len(request) < 4:
+            return CONF_LENGTH_ERROR_MSG.format(val_1=body)
+
+        # Checks that the second element of the request is the language:
+        languages = set(item.value for item in Language)
+        language = str(request[1]).upper()
+        if language not in languages:
+            return CONF_LANGUAGE_ERROR_MSG.format(val_1=request[1], val_2=languages)
+
+        # Checks that the third element of the request is the currency:
+        currencies = set(item.value for item in Currency)
+        currency = str(request[2]).upper()
+        if currency not in currencies:
+            return CONF_CURRENCY_ERROR_MSG.format(val_1=request[2], val_2=currencies)
+
+        name = " ".join(request[3:])
+
+        # Record new information in the database.
+        organization_id = record_organization(
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            name=name,
+            language=language,
+            currency=currency,
+        )
+        record_user(
+            organization_id=organization_id,
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            whatsapp_phone=whatsapp_phone,
+            name="",
+            is_admin=True,
+        )
+
+        return {
+            "name": name,
+            "language": language,
+            "currency": currency,
+            "whatsapp_phone": whatsapp_phone,
+        }
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        name = kwargs.get("name")
+        language = kwargs.get("language")
+        currency = kwargs.get("currency")
+        whatsapp_phone = kwargs.get("whatsapp_phone")
+
+        return NEW_ORGANIZATION_MSG.to_str(
+            language,
+            val_1=name,
+            val_2=language,
+            val_3=currency,
+            val_4=whatsapp_phone,
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        # This command is only used once so no generalized help should be shown.
+        return None
+
+
+@dataclass
+class Name(Command):
+    """Set the user's name."""
+
+    regexp: str = "^(name|nombre)$"
+
+    def execute(
+        self,
+        organization: Organization,
+        **kwargs,
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        user: User = kwargs.get("user")
+        body = kwargs.get("body")
+        request = body.split(" ")
+
+        # Checks that there is at least 1 space defining the request.
+        if len(request) < 2:
+            return ErrorMsg(
+                error_str=NAME_LENGTH_ERROR_MSG.to_str(
+                    organization.language, val_1=body
+                ),
+            ).to_str(organization.language)
+
+        name = " ".join(request[1:])
+        updated_user = update_user(user=user, name=name)
+
+        return {"updated_user": updated_user}
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        updated_user: User = kwargs.get("updated_user")
+
+        return UPDATED_USER_MSG.to_str(
+            organization.language,
+            val_1=updated_user.name,
+            val_2=updated_user.whatsapp_phone,
+            val_3="✅" if updated_user.is_admin else "🚫",
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        return NAME_HELP_MSG.to_str(organization.language)
+
+
+@dataclass
+class Add(Command):
+    """Add a new user to the organization."""
+
+    regexp: str = "^(add|agregar)$"
+
+    def execute(
+        self, organization: Organization, **kwargs
+    ) -> Dict[str, Any] | ErrorMsg | None:
+        user: User = kwargs.get("user")
+        body = kwargs.get("body")
+        request = body.split(" ")
+
+        # Only an admin can execute this request.
+        if not user.is_admin:
+            return ErrorMsg(
+                error_str=USER_NOT_ADMIN_ERROR_MSG.to_str(
+                    organization.language, val_1=organization.name
+                )
+            ).to_str(organization.language)
+
+        # Checks that there is at least 1 space defining the request.
+        if len(request) < 2:
+            return ErrorMsg(
+                error_str=ADD_LENGTH_ERROR_MSG.to_str(
+                    organization.language, val_1=body
+                ),
+            ).to_str(organization.language)
+
+        # Checks that the phone number is valid.
+        phone_number = request[1]
+        if not re.compile(r"^\+[1-9]\d{1,14}$").match(phone_number):
+            return ErrorMsg(
+                error_str=INVALID_PHONE_ERROR_MSG.to_str(
+                    organization.language, val_1=phone_number
+                )
+            ).to_str(organization.language)
+
+        # Checks that the new user is not registered to another organization.
+        added_user = retrieve_user(phone_number)
+        if added_user is not None:
+            return ErrorMsg(
+                error_str=ADDED_USER_EXISTS_ERROR_MSG.to_str(
+                    organization.language, val_1=phone_number
+                )
+            ).to_str(organization.language)
+
+        # Send the whatsapp message and check if it did not return any errors.
+        message = self._send_message(
+            organization=organization,
+            user=user,
+            phone_number=phone_number,
+        )
+        if (
+            message is None
+            or message.error_code is not None
+            or message.error_message is not None
+        ):
+            return ErrorMsg(
+                error_str=SEND_MESSAGE_ERROR_MSG.to_str(
+                    organization.language,
+                    val_1=phone_number,
+                )
+            ).to_str(organization.language)
+
+        # Records the user in the database.
+        record_user(
+            organization_id=organization.id,
+            created_at=datetime.now(pytz.timezone(os.getenv("TIMEZONE"))),
+            whatsapp_phone=phone_number,
+            name="",
+            is_admin=False,
+        )
+
+        return {"phone_number": phone_number}
+
+    def message(self, organization: Organization, user: User, **kwargs) -> str:
+        phone_number = kwargs.get("phone_number")
+
+        return ADDED_USER_MSG.to_str(
+            organization.language,
+            val_1=organization.name,
+            val_2=phone_number,
+        )
+
+    def help_message(self, organization: Organization) -> str | None:
+        return ADD_HELP_MSG.to_str(organization.language)
+
+    @staticmethod
+    def _send_message(
+        organization: Organization, user: User, phone_number: str
+    ) -> MessageInstance | None:
+        """Send a message to the given phone number notifying them that they
+        have been added to an organization."""
+
+        try:
+            message = TWILIO_CLIENT.messages.create(
+                from_=os.getenv("TWILIO_PHONE"),
+                body=USER_WELCOME_MSG.to_str(
+                    organization.language,
+                    val_1=organization.name,
+                    val_2=organization.language,
+                    val_3=organization.currency,
+                    val_4=user.whatsapp_phone,
+                ),
+                to=f"whatsapp:{phone_number}",
+            )
+            return message
+
+        except Exception as ex:
+            logging.exception(f"could not send message: {ex}")
+            return None
+
+
 # Instantiate the supported commands once because they contain static
 # information that does not need updating.
 COMMANDS: Dict[str, Command | Transaction] = {
@@ -480,4 +785,7 @@ COMMANDS: Dict[str, Command | Transaction] = {
     "ess": Essential(),
     "non": NonEssential(),
     "inc": Income(),
+    "org": OrganizationCommand(),
+    "name": Name(),
+    "add": Add(),
 }

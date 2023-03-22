@@ -42,6 +42,10 @@ mysql -u user -p
 
 Once the `mysql>` prompt is available, you can create the database and tables.
 
+The objective is to create the tables displayed here:
+
+![Database Diagram](./diagram.svg)
+
 Create the database:
 
 ```sql

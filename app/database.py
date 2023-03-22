@@ -84,7 +84,7 @@ def record_transaction(
     value_converted: float,
     user: User,
 ):
-    """Record a transaction to the transactions table."""
+    """Record a transaction to the transaction table."""
 
     transaction = Transaction(
         created_at=created_at,
@@ -105,13 +105,23 @@ def record_transaction(
     logging.info("successfully recorded transaction")
 
 
-def retrieve_transactions(date: datetime) -> List[Transaction]:
-    """Retrieve transactions from the transactions table."""
+def retrieve_transactions(
+    date: datetime,
+    organization: Organization,
+) -> List[Transaction]:
+    """Retrieve transactions from the transactions table for the given
+    organization."""
 
     with Session(ENGINE) as session:
         # Executes statement to retrieve info from the database.
-        statement = select(Transaction).where(
-            Transaction.created_at >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo)
+        statement = (
+            select(Transaction)
+            .join(User)
+            .where(
+                Transaction.created_at
+                >= datetime(date.year, 1, 1, 0, 0, 0, 0, date.tzinfo),
+                User.organization_id == organization.id,
+            )
         )
         logging.info(f"executing sql statement: {statement}")
         transactions = session.exec(statement)
@@ -145,3 +155,103 @@ def retrieve_user_organization(whatsapp_phone: str) -> Tuple[User, Organization]
             user, organization = None, None
 
     return user, organization
+
+
+def retrieve_user(whatsapp_phone: str) -> User | None:
+    """Retrieves the user based on the provided filter."""
+
+    with Session(ENGINE) as session:
+        statement = select(User).where(User.whatsapp_phone == whatsapp_phone)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        try:
+            user = results.one()
+        except Exception:
+            user = None
+
+    return user
+
+
+def retrieve_organization(user: User) -> Organization:
+    """Retrieves the organization for the given user."""
+
+    with Session(ENGINE) as session:
+        statement = select(Organization).where(Organization.id == user.organization_id)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        organization = results.one()
+
+    return organization
+
+
+def record_organization(
+    created_at: datetime,
+    name: str,
+    language: Language,
+    currency: Currency,
+) -> int:
+    """Record an organization to the organization table. Returns the id after
+    successfully recording the organization."""
+
+    organization = Organization(
+        created_at=created_at,
+        name=name,
+        currency=currency,
+        language=language,
+    )
+    logging.info(f"creating new organization record: {organization}")
+
+    # Stores the record in the database.
+    with Session(ENGINE) as session:
+        session.add(organization)
+        session.commit()
+        session.refresh(organization)
+        organization_id = organization.id
+
+    logging.info("successfully recorded organization")
+
+    return organization_id
+
+
+def record_user(
+    organization_id: int,
+    created_at: datetime,
+    whatsapp_phone: str,
+    name: str,
+    is_admin: bool,
+):
+    """Record a new user to the user table."""
+
+    user = User(
+        organization_id=organization_id,
+        created_at=created_at,
+        whatsapp_phone=whatsapp_phone,
+        name=name,
+        is_admin=is_admin,
+    )
+    logging.info(f"creating new user record: {user}")
+
+    # Stores the record in the database.
+    with Session(ENGINE) as session:
+        session.add(user)
+        session.commit()
+
+    logging.info("successfully recorded user")
+
+
+def update_user(user: User, name: str) -> User:
+    """Update a table entry for a user."""
+
+    with Session(ENGINE) as session:
+        statement = select(User).where(User.id == user.id)
+        logging.info(f"executing sql statement: {statement}")
+        results = session.exec(statement)
+        user = results.one()
+        user.name = name
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    logging.info("successfully updated user")
+
+    return user
